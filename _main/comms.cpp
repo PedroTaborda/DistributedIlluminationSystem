@@ -4,7 +4,9 @@
 
 Comms *_comms;
 
-Comms::Comms(CommandParser parser) : parser(parser)
+extern int myID;
+
+void Comms::init()
 {
     Wire.setSDA(SDA_MASTER_PIN);
     Wire.setSCL(SCL_MASTER_PIN);
@@ -17,28 +19,53 @@ Comms::Comms(CommandParser parser) : parser(parser)
     _comms = this;
 }
 
+bool Comms::joinNetwork()
+{
+    int ret;
+    for (int my_potential_addr = my_id + addr_offset; my_potential_addr < 128; my_potential_addr++)
+    {
+        do
+        {
+            Wire.beginTransmission(my_potential_addr);
+            ret = Wire.endTransmission(false);
+        } while (ret == 4);
+
+        if (ret)
+        {
+            my_id = my_potential_addr - addr_offset;
+            myID = my_id;
+            Wire1.begin(my_potential_addr);
+            Wire1.onReceive([](int i){ _comms->onReceive(i); });
+            Wire1.onRequest([](){ _comms->onRequest(); });
+            return true;
+        }
+    }
+    return false;
+}
+
 ProcessingResult Comms::processCommand(const char *command)
 {
-    signed char luminaire_id = parser.getLuminaireId(command);
+    signed char luminaireID = parser.getLuminaireId(command);
     int ret = 0;
-    bool commandExecutedSuccessfully = false;
-    if (!parser.validCommand(command))
-        return PROCESSING_INVALID_COMMAND;
+    char *commandRet = NULL;
 
-    // getLuminaireId returns -1 if no luminaire id was found
-    // also, addresses have 7 bits, so all other negative values are invalid
-    if (luminaire_id < 0)
-        return PROCESSING_INVALID_COMMAND;
-
-    if (luminaire_id == my_id)
+    //Serial.printf("My id: %d, luminaire id: %d\n", my_id, luminaireID);
+    if (luminaireID == my_id)
     {
-        commandExecutedSuccessfully = parser.executeCommand(command);
-        return commandExecutedSuccessfully ? PROCESSING_OK : PROCESSING_LOCAL_EXECUTION_FAILURE;
+        commandRet = parser.executeCommand(command);
+        Serial.println(commandRet == NULL ? "NULL" : commandRet);
+        return commandRet == NULL ? PROCESSING_LOCAL_EXECUTION_FAILURE : PROCESSING_OK;
     }
 
-    const char *stripped_command = parser.strip(command);
-    Wire.beginTransmission(luminaire_id);
-    Wire.write(stripped_command);
+    const char *strippedCommand = parser.strip(command);
+    // Serial.printf("Sending command: '%s'\n", strippedCommand);
+    Wire.beginTransmission(luminaireID + addr_offset);
+    Wire.write((uint8_t) MSG_TYPE_COMMAND);
+    while (*strippedCommand)
+    {
+        Wire.write(*strippedCommand);
+        strippedCommand++;
+    }
     ret = Wire.endTransmission();
     if (ret == 0){
         return PROCESSING_OK;
@@ -51,80 +78,76 @@ ProcessingResult Comms::processCommand(const char *command)
     }
 }
 
-bool Comms::joinNetwork()
-{
-    int ret;
-    for (int my_potential_addr = my_id + addr_offset; my_potential_addr < 128; my_potential_addr++)
-    {
-        do{
-            Wire.beginTransmission(my_potential_addr);
-            ret = Wire.endTransmission(false);
-        } while(ret == 4);
-
-        if (!ret)
-        {
-            Serial.printf("Addr %d occupied\n", my_potential_addr);
-            Serial.printf("Response: %d\n", ret);
-        }
-        else
-        {
-            Serial.printf("Addr %d unoccupied\n", my_potential_addr);
-            my_id = my_potential_addr - addr_offset;
-            Wire1.begin(my_potential_addr);
-            Wire1.onReceive([](int i){ _comms->onReceive(i); });
-            Wire1.onRequest([](){ _comms->onRequest(); });
-            return true;
-        }
-
-    }
-    return false;
-}
-
 void Comms::onReceive(int signed bytesReceived)
 {
-    MSG_TYPE msg_type = (MSG_TYPE) Wire.read();
-    error = true;
-    sprintf(error_msg, "Received %d bytes. Message type: %d\n", bytesReceived, msg_type);
+    MSG_TYPE msgType = (MSG_TYPE) Wire1.read();
+    //error = true;
+    //sprintf(errorMsg, "Received %d bytes. Message type: %d\n", bytesReceived, msgType);
 
-    switch (msg_type)
-    {
-    /*case MSG_TYPE_WAKEUP_REQUEST:
-        if (bytesReceived != 1)
-        {
-            error = true;
-            sprintf(error_msg, "Invalid wakeup request message received");
-            break;
-        }
-        requestedDataSize = 1;
-        requestedData[0] = 1;
-        break;
-    */
-    default:
-        break;
-    }
-    if (requestedDataSize > requestedDataBufferSize)
+    if (bytesReceived == 1)
+        return;
+
+    if (bytesReceived > receivedDataBufferSize)
     {
         error = true;
-        sprintf(error_msg, "Requested data buffer overflow");
+        sprintf(errorMsg, "Received %d/%d bytes. Message type: %d. Buffer too small.\n", bytesReceived, receivedDataBufferSize, msgType);
+        return;
     }
+    for (int buf_idx = 0; buf_idx < bytesReceived - 1; buf_idx++)
+    {
+        receivedData[buf_idx] = Wire1.read();
+        // Serial.print(receivedData[buf_idx]);
+    }
+    // Serial.print("\n");
+    receivedData[bytesReceived] = '\0';
+
+    receivedMsgType = msgType;
+    receivedDataSize = bytesReceived - 1;
 }
 
 void Comms::onRequest()
 {
     Wire.write(1);
-    /*for (int i = 0; i < requestedDataSize; i++)
-    {
-        Wire.write(requestedData[i]);
-    }*/
 }
 
 void Comms::flushError(){
     if (error)
-        Serial.printf("%s\n", error_msg);
+        Serial.printf("%s\n", errorMsg);
     error = false;
+}
+
+void Comms::processReceivedData()
+{
+    if (receivedMsgType == MSG_TYPE_NONE)
+        return;
+
+    char *commandRet = NULL;
+    switch (receivedMsgType)
+    {
+    // If a command was issued to me, I will execute it and reply with the result.
+    case MSG_TYPE_COMMAND:
+        Wire.beginTransmission(0);
+        Wire.write(MSG_TYPE_REPLY);
+        commandRet = parser.executeCommand(receivedData);
+        Wire.write(commandRet);
+        Wire.endTransmission();
+        break;
+
+    // If a reply is coming my way, I will relay it to the Serial interface.
+    // Same for stream.
+    case MSG_TYPE_REPLY:
+    case MSG_TYPE_STREAM:
+        Serial.printf("%s\n", receivedData);
+        break;
+
+    default:
+        break;
+    }
+    receivedMsgType = MSG_TYPE_NONE;
 }
 
 void Comms::eventLoop()
 {
     flushError();
+    processReceivedData();
 }

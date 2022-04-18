@@ -3,6 +3,8 @@
 #include "calibration.hpp"
 #include "globals.hpp"
 #include "utilities.hpp"
+#include "parser.hpp"
+#include "comms.hpp"
 
 #include <Arduino.h>
 
@@ -18,26 +20,12 @@ void (*commandFunctions[])(char *) = {getCommand, dutyCommand, referenceCommand,
 
 const int NUMBER_COMMANDS = sizeof(commandStrings) / sizeof(char *);
 
-void parseSerial() {
-    String serialBuffer = Serial.readStringUntil('\n');
-    char *string = (char *)serialBuffer.c_str();
+void parseSerial(Comms comms) {
+    char *string = (char *)Serial.readStringUntil('\n').c_str();
 
-    const char *delimiter = " ";
-    char *command;
-
-    command = strsep(&string, delimiter);
-
-    if(command == NULL) {
-        Serial.println("Invalid command.");
-        return;
-    }
-
-    for(unsigned int i = 0; i < NUMBER_COMMANDS; i++) {
-        if(strcmp(command, commandStrings[i]) == 0) {
-            commandFunctions[i](string);
-            break;
-        }
-    }
+    int ret = comms.processCommand(string);
+    (void)ret;
+    //Serial.printf("Process command returned %d\n", ret);
 }
 
 void getCommand(char *arguments) {  

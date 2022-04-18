@@ -9,6 +9,8 @@
 #include "globals.hpp"
 #include "interface.hpp"
 #include "utilities.hpp"
+#include "comms.hpp"
+#include "parser.hpp"
 
 // Initialization of global variables
 
@@ -41,7 +43,24 @@ int dmaChannel;
 float copyBuffer[60*100];
 int currentHead = 0;
 
+int myID = 0;
+
 IntFloat intfloat0, intfloat1;
+
+CommandParser parser(
+    (Command[]){
+    {'a', "<float>", "reply is number + 2", floatArgCom([](float f){printI2C("a %d %f", myID, f+2)}), NULL},
+    {'h', "", "help", noArgCom(help), NULL},
+    {'g', "", "get command", NULL, (Command[]){
+        {'r', "", "reference", printfCom("reference :)"), NULL},
+        {'\0', "", "", NULL, NULL}}},
+    {'p', "", "ack", noArgCom([](){ACK}), NULL},
+    {'t', "", "time", printfCom("t %d %lu", myID, millis()), NULL},
+    {'\0', "", "", NULL, NULL}
+}
+);
+
+Comms comms(parser);
 
 // CORE 0 is in charge of communications with the computer
 // CORE 1 handles the controller
@@ -49,82 +68,88 @@ IntFloat intfloat0, intfloat1;
 void setup() {
     // Initialize Serial protocol
     Serial.begin();
+    comms.init();
+    comms.joinNetwork();
+    /*
+        // Pause the other core and read constants from the EEPROM
+        rp2040.idleOtherCore();
 
-    // Pause the other core and read constants from the EEPROM
-    rp2040.idleOtherCore();
-
-    EEPROM.begin(4096);
-    int EEPROMAddress = 0;
-    EEPROM.get(EEPROMAddress, gammaFactor);
-    EEPROMAddress += sizeof(float);
-
-    for(int tauCounter = 0; tauCounter < 10; tauCounter++) {
-        float lux, tau;
-        EEPROM.get(EEPROMAddress, lux);
-        EEPROMAddress += sizeof(float);
-        EEPROM.get(EEPROMAddress, tau);
+        EEPROM.begin(4096);
+        int EEPROMAddress = 0;
+        EEPROM.get(EEPROMAddress, gammaFactor);
         EEPROMAddress += sizeof(float);
 
-        luxAscending[tauCounter] = lux;
-        tauAscending[tauCounter] = tau;
-    }
+        for(int tauCounter = 0; tauCounter < 10; tauCounter++) {
+            float lux, tau;
+            EEPROM.get(EEPROMAddress, lux);
+            EEPROMAddress += sizeof(float);
+            EEPROM.get(EEPROMAddress, tau);
+            EEPROMAddress += sizeof(float);
 
-    for(int tauCounter = 0; tauCounter < 10; tauCounter++) {
-        float lux, tau;
-        EEPROM.get(EEPROMAddress, lux);
-        EEPROMAddress += sizeof(float);
-        EEPROM.get(EEPROMAddress, tau);
-        EEPROMAddress += sizeof(float);
+            luxAscending[tauCounter] = lux;
+            tauAscending[tauCounter] = tau;
+        }
 
-        luxDescending[tauCounter] = lux;
-        tauDescending[tauCounter] = tau;
-    }
+        for(int tauCounter = 0; tauCounter < 10; tauCounter++) {
+            float lux, tau;
+            EEPROM.get(EEPROMAddress, lux);
+            EEPROMAddress += sizeof(float);
+            EEPROM.get(EEPROMAddress, tau);
+            EEPROMAddress += sizeof(float);
 
-    EEPROM.end();
-    // Resume the other core
-    rp2040.resumeOtherCore();
+            luxDescending[tauCounter] = lux;
+            tauDescending[tauCounter] = tau;
+        }
+
+        EEPROM.end();
+        // Resume the other core
+        rp2040.resumeOtherCore();
+    */
 }
 
 void loop() {
-    if(Serial.available() > 0) {
-        parseSerial();
+    if(Serial.available() > 0)
+    {
+        parseSerial(comms);
     }
+    comms.eventLoop();
+    /*
+        uint32_t queueResult;
+        if(rp2040.fifo.pop_nb(&queueResult)) {
+            char command = (char) queueResult;
+            char variable;
+            float variableValue;
+            unsigned long timeStamp;
+            switch(command) {
+            case 'B':
+                queueResult = rp2040.fifo.pop();
+                variable = (char) queueResult;
+                Serial.print("B "); Serial.print(variable); Serial.print(" 0 ");
+                for(int i = 0; i < 60*100; i++) {
+                    Serial.print(copyBuffer[(currentHead + i) % (60 * 100)], 6);
+                    i == 60*100 - 1 ? Serial.print('\n') : Serial.print(',');
+                }
+                bufferLock = false;
+                streamDutyBuffer = false;
+                streamLuminanceBuffer = false;
+                break;
+            case 's':
+                queueResult = rp2040.fifo.pop();
+                variable = (char) queueResult;
+                queueResult = rp2040.fifo.pop();
+                intfloat0.to = queueResult;
+                variableValue = intfloat0.from;
+                queueResult = rp2040.fifo.pop();
+                timeStamp = (unsigned long) queueResult;
 
-    uint32_t queueResult;
-    if(rp2040.fifo.pop_nb(&queueResult)) {
-        char command = (char) queueResult;
-        char variable;
-        float variableValue;
-        unsigned long timeStamp;
-        switch(command) {
-        case 'B':
-            queueResult = rp2040.fifo.pop();
-            variable = (char) queueResult;
-            Serial.print("B "); Serial.print(variable); Serial.print(" 0 ");
-            for(int i = 0; i < 60*100; i++) {
-                Serial.print(copyBuffer[(currentHead + i) % (60 * 100)], 6);
-                i == 60*100 - 1 ? Serial.print('\n') : Serial.print(',');
+                Serial.print("s "); Serial.print(variable); Serial.print(" 0 ");
+                Serial.print(variableValue, 6); Serial.print(' '); Serial.println(timeStamp / 1000);
+                break;
             }
-            bufferLock = false;
-            streamDutyBuffer = false;
-            streamLuminanceBuffer = false;
-            break;
-        case 's':
-            queueResult = rp2040.fifo.pop();
-            variable = (char) queueResult;
-            queueResult = rp2040.fifo.pop();
-            intfloat0.to = queueResult;
-            variableValue = intfloat0.from;
-            queueResult = rp2040.fifo.pop();
-            timeStamp = (unsigned long) queueResult;
-
-            Serial.print("s "); Serial.print(variable); Serial.print(" 0 ");
-            Serial.print(variableValue, 6); Serial.print(' '); Serial.println(timeStamp / 1000);
-            break;
         }
-    }
+    */
 }
-
+/*
 void setup1() {
     // Initialize the ADC and DAC settings
     analogReadResolution(12);
@@ -270,3 +295,4 @@ void loop1() {
 
     streamer.streamVariables();
 }
+*/

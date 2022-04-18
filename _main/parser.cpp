@@ -2,6 +2,10 @@
 #include "Arduino.h"
 #include <cstdint>
 
+char NOT_IMPLEMENTED_BUF[] = "Not implemented";
+char ACK_BUF[] = "ack";
+char ERR_BUF[] = "err";
+
 /* Removes luminaire ID from command string, leaving only its arguments.
  */
 char *skipID(const char *command)
@@ -11,7 +15,7 @@ char *skipID(const char *command)
     return after_luminaire_id;
 }
 
-bool _executeCommand(const char *command, Command *command_list, bool onlyCheckValid)
+char *_executeCommand(const char *command, Command *command_list)
 {
     while (isspace(*command))
         command++;
@@ -22,35 +26,30 @@ bool _executeCommand(const char *command, Command *command_list, bool onlyCheckV
             command++;
             if (cur_command->children != NULL)
             {
-                if (!_executeCommand(command, cur_command->children, onlyCheckValid))
-                    return false;
+                return _executeCommand(command, cur_command->children);
             }
             else
             {
                 char *after_luminaire_id = skipID(command);
                 if (after_luminaire_id == command)
                 {
-                    return false;
+                    return NULL;
                 }
                 else
                 {
-                    if (onlyCheckValid)
-                        return true;
-                    cur_command->func(after_luminaire_id);
+                    return cur_command->func(after_luminaire_id);
                 }
             }
-            return true;
         }
     }
-    return false;
+    return NULL;
 }
 
 signed char _getLuminaireId(const char *command_str, Command *command_list)
 {
     if (command_str[0] == '\0')
-    {
         return -1;
-    }
+
     while (isspace(command_str[0]))
     {
         command_str++;
@@ -63,14 +62,15 @@ signed char _getLuminaireId(const char *command_str, Command *command_list)
             {
                 return _getLuminaireId(command_str + 1, command_list[i].children);
             }
+            else{
+                break;
+            }
         }
     }
     char *after_luminaire_id = NULL;
-    signed char ID = strtol(command_str, &after_luminaire_id, 10);
-    if (after_luminaire_id == command_str)
-    {
+    signed char ID = strtol(command_str + 1, &after_luminaire_id, 10);
+    if (after_luminaire_id == command_str + 1)
         return -1;
-    }
     return ID;
 }
 
@@ -103,30 +103,18 @@ void _help(unsigned int depth, Command *command_list, char prefix[])
     }
 }
 
-void noOpt(const char *args)
+CommandParser *_parser;
+
+CommandParser::CommandParser(Command *command_list) : command_list(command_list)
 {
-    for (unsigned int i = 0; args[i] != '\0'; i++)
-        if (!isspace(args[i]))
-        {
-            Serial.printf("Command has no options. \"%s\" ignored\n", args);
-            return;
-        }
+    _parser = this;
 }
 
 /* Returns true if there is a matching command (and executes it)
  */
-bool CommandParser::executeCommand(const char *command)
+char *CommandParser::executeCommand(const char *command)
 {
-    bool onlyCheckValid = false;
-    return _executeCommand(command, command_list, onlyCheckValid);
-}
-
-/* Returns true if there is a matching command
- */
-bool CommandParser::validCommand(const char *command)
-{
-    bool onlyCheckValid = true;
-    return _executeCommand(command, command_list, onlyCheckValid);
+    return _executeCommand(command, command_list);
 }
 
 /* Retrieves luminaire ID from command string, and returns it.
@@ -136,14 +124,15 @@ signed char CommandParser::getLuminaireId(const char *command)
     return _getLuminaireId(command, command_list);
 }
 
-void CommandParser::help()
+char *help()
 {
     Serial.printf("The first argument after the command identifier (<i>) is the target luminaire id.\n");
     Serial.printf("Indented commands are subcommands of the last unindented command.\n");
     Serial.printf("Spaces are only required between numbers. They are otherwise ignored.\n");
     Serial.printf("Available commands:\n");
     char prefix[] = {'\0'};
-    _help(0, command_list, prefix);
+    _help(0, _parser->command_list, prefix);
+    return NULL;
 }
 
 const char *CommandParser::strip(const char *command)
@@ -161,6 +150,15 @@ const char *CommandParser::strip(const char *command)
         }
         idx_command++;
     }
+
+    while(command[idx_command] != '\0')
+    {
+        stripped[idx_stripped] = command[idx_command];
+        idx_stripped++;
+        idx_command++;
+    }
+
+    stripped[idx_stripped] = '\0';
 
     return (const char *)stripped;
 }

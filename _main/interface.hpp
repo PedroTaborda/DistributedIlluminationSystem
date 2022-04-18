@@ -1,7 +1,8 @@
 #ifndef INTERFACE_HPP
 #define INTERFACE_HPP
+#include "comms.hpp"
 
-void parseSerial();
+void parseSerial(Comms comms);
 
 // Functions for the various interface commands
 void getCommand(char *arguments);

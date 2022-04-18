@@ -29,9 +29,10 @@
  *   present.
  */
 
-enum MSG_TYPE
+enum MSG_TYPE : unsigned char
 {
-    MSG_TYPE_ERROR,
+    MSG_TYPE_ERROR=0,
+    MSG_TYPE_NONE,
     MSG_TYPE_COMMAND,
     MSG_TYPE_REPLY,
     MSG_TYPE_STREAM
@@ -40,13 +41,14 @@ enum MSG_TYPE
 enum ProcessingResult
 {
     PROCESSING_OK=0,
-    PROCESSING_INVALID_COMMAND,
     PROCESSING_I2C_TIMEOUT,
     PROCESSING_I2C_OTHER_ERROR,
     PROCESSING_LOCAL_EXECUTION_FAILURE,
 };
 
-const int requestedDataBufferSize = 64; // to be put in a central place
+const int receivedDataBufferSize = 64; // to be put in a central place
+const unsigned long timeout_ms = 50;
+const signed char addr_offset = 8;
 
 class Comms
 {
@@ -55,29 +57,29 @@ public:
     signed char my_id = 0;
 
     Comms(){};
-    Comms(CommandParser parser);
+    Comms(CommandParser parser) : parser(parser) {}
+
+    void init();
 
     bool joinNetwork();
 
     ProcessingResult processCommand(const char *command);
 
     void eventLoop();
+
 private:
-    unsigned long timeout_ms = 50;
-    signed char addr_offset = 8;
-
-    signed char *members_id = NULL;
-
-    char requestedData[requestedDataBufferSize];
-    char requestedDataSize = 0;
+    char receivedData[receivedDataBufferSize];
+    char receivedDataSize = 0;
+    MSG_TYPE receivedMsgType = MSG_TYPE_NONE;
 
     bool error = false;
-    char error_msg[100];
+    char errorMsg[100];
 
     void onReceive(int);
     void onRequest();
 
     void flushError();
+    void processReceivedData();
 };
 
 #endif // COMMS_HPP
