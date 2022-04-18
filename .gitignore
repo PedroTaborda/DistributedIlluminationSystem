@@ -35,3 +35,6 @@ scdtr/
 *.exe
 *.out
 *.app
+
+# Vim SWAP
+*.swp
