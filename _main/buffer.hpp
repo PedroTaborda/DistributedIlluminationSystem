@@ -2,52 +2,33 @@
 #define BUFFER_HPP
 
 template <typename T, int SIZE>
+// indexing starts at 1
 class Buffer {
-public:
+   public:
+    Buffer() { reset(); }
 
-    Buffer() :
-    currentHead(0),
-    currentTail(0),
-    moveTail(false) {
-
+    void reset() {
+        items = 0;
+        currentHead = 0;
     }
 
     void insert(T value) volatile {
         buffer[currentHead] = value;
         currentHead = (currentHead + 1) % SIZE;
-
-        if(currentHead - currentTail >= SIZE)
-            moveTail = true;
-
-        if(moveTail)
-            currentTail = (currentTail + 1) % SIZE;
+        items = min(SIZE, items + 1);
     }
 
-    T getBegin(int index) volatile {
-        return buffer[(currentHead - index) % SIZE];
-    }
+    T getBegin(int index) volatile { return buffer[(currentHead - index) % SIZE]; }
 
-    T getEnd(int offset) volatile {
-        return buffer[(currentTail + offset) % SIZE];
-    }
+    // T getEnd(int offset) volatile { return buffer[(currentHead - items + offset - 1) % SIZE]; }
 
-    int getCurrentHead() volatile {
-        return currentHead;
-    }
+    int getCurrentHead() volatile { return currentHead; }
 
-    int getCurrentTail() volatile {
-        return currentTail;
-    }
+    volatile T* _getBufferLocation() volatile { return buffer; }
 
-    volatile T* _getBufferLocation() volatile {
-        return buffer;
-    }
-
-private:
-
-    int currentHead, currentTail;
-    bool moveTail;
+   private:
+    int currentHead, items;
     T buffer[SIZE];
 };
 
-#endif // BUFFER_HPP
+#endif  // BUFFER_HPP
