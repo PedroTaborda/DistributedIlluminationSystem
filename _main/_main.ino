@@ -70,6 +70,11 @@ void setup() {
     Serial.begin();
     comms.init();
     comms.joinNetwork();
+
+    while(calibrator.waiting()) ;
+
+    if(comms.my_id == 0x0)
+        comms.calibrateNetwork();
     /*
         // Pause the other core and read constants from the EEPROM
         rp2040.idleOtherCore();

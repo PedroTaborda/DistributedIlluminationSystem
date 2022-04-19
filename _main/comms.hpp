@@ -35,7 +35,12 @@ enum MSG_TYPE : unsigned char
     MSG_TYPE_NONE,
     MSG_TYPE_COMMAND,
     MSG_TYPE_REPLY,
-    MSG_TYPE_STREAM
+    MSG_TYPE_STREAM,
+    MSG_TYPE_WAKEUP,
+    MSG_TYPE_BEGIN_CALIBRATION,
+    MSG_TYPE_FIND_HIGHEST_ID,
+    MSG_TYPE_CALIBRATE_ID,
+    MSG_TYPE_END_CALIBRATION
 };
 
 enum ProcessingResult
@@ -49,6 +54,7 @@ enum ProcessingResult
 const int receivedDataBufferSize = 64; // to be put in a central place
 const unsigned long timeout_ms = 50;
 const signed char addr_offset = 8;
+inline constexpr unsigned long MESSAGE_SLACK_WAIT_MS = 500;
 
 class Comms
 {
@@ -62,6 +68,7 @@ public:
     void init();
 
     bool joinNetwork();
+    void calibrateNetwork();
 
     ProcessingResult processCommand(const char *command);
 

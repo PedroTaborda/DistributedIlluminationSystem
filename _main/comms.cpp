@@ -1,3 +1,4 @@
+#include "calibration.hpp"
 #include "comms.hpp"
 #include "parser.hpp"
 #include <Wire.h>
@@ -37,10 +38,70 @@ bool Comms::joinNetwork()
             Wire1.begin(my_potential_addr);
             Wire1.onReceive([](int i){ _comms->onReceive(i); });
             Wire1.onRequest([](){ _comms->onRequest(); });
+            do
+            {
+                Wire.beginTransmission(0x0);
+                Wire.write(MSG_TYPE_WAKEUP);
+                ret = Wire.endTransmission(true);
+            } while(ret == 4);
+
+            if(my_id == 0x0)
+                calibrator.resetWait();
             return true;
         }
     }
     return false;
+}
+
+void Comms::calibrateNetwork() {
+    // Warn everybody calibration is starting
+    do {
+        Wire.beginTransmission(0x0);
+        Wire.write(MSG_TYPE_BEGIN_CALIBRATION);
+    } while(Wire.endTransmission(true) == 4);
+    // Become the maestro
+    calibrator.becomeMaestro();
+
+    // Everybody should know that now only calibration messages
+    // are being traded. Every luminaire in the network now
+    // replies with their id.
+    // Block while waiting for the ids to stop arriving,
+    // hijacking the eventLoop.
+    while(calibrator.waitingIds()) eventLoop();
+
+    // After the highest id has been found, order everyone to calibrate,
+    // in order.
+    for(signed char i = 0; i < calibrator.getHighestId(); i++) {
+        // Order luminaire i to run its calibration cycle. Also
+        // lets the other luminaires know that i is about to run
+        // its calibration cycle in order to calibrate coupled gains.
+        do {
+            Wire.beginTransmission(0x0);
+            Wire.write(MSG_TYPE_CALIBRATE_ID);
+            Wire.write(i);
+        } while(Wire.endTransmission(true) == 4);
+
+        // When the message gets sent, its either our time to calibrate
+        // or we should look.
+        if(i == my_id)
+            calibrator.selfCalibrate(my_id);
+        else
+            calibrator.calibrateGainId(i);
+
+        // Wait for the node that just ran its calibration cycle to turn off
+        // (if it wasn't me) and then give some slack for messaging delays.
+        if(i != my_id)
+            delay(STEADY_STATE_WAIT_MS);
+        delay(MESSAGE_SLACK_WAIT_MS);
+    }
+
+    // Let everyone know calibration is over.
+    do {
+        Wire.beginTransmission(0x0);
+        Wire.write(MSG_TYPE_END_CALIBRATION);
+    } while(Wire.endTransmission(true) == 4);
+
+    calibrator.endCalibration();
 }
 
 ProcessingResult Comms::processCommand(const char *command)
@@ -139,6 +200,45 @@ void Comms::processReceivedData()
     case MSG_TYPE_STREAM:
         Serial.printf("%s\n", receivedData);
         break;
+    // In case someone just waked-up and I'm id=0, I'll see if we're waiting
+    // to start calibration. If yes, reset the counter back to the start.
+    case MSG_TYPE_WAKEUP:
+        if(my_id == 0 && calibrator.waiting()) {
+            calibrator.resetWait();
+        }
+        break;
+    case MSG_TYPE_BEGIN_CALIBRATION:
+        // The maestro ignores its own calls to calibrate
+        if(!calibrator.isMaestro()) {
+            // Broadcast our id so the highest id can be determined
+            do {
+                Wire.beginTransmission(0x0);
+                Wire.write(MSG_TYPE_FIND_HIGHEST_ID);
+                Wire.write(my_id);
+            } while(Wire.endTransmission(true) == 4);
+        } else {
+            calibrator.setHighestId(my_id);
+            calibrator.resetWaitId();
+        }
+        break;
+    case MSG_TYPE_FIND_HIGHEST_ID:
+        calibrator.setHighestId((signed char) receivedData[0]);
+        calibrator.resetWaitId();
+        break;
+    case MSG_TYPE_CALIBRATE_ID:
+        // The maestro ignores its own calls to calibrate
+        if(!calibrator.isMaestro()) {
+            if(receivedData[0] != my_id)
+                calibrator.calibrateGainId(receivedData[0]);
+            else
+                calibrator.selfCalibrate(my_id);
+        }
+        break;
+    case MSG_TYPE_END_CALIBRATION:
+        // The maestro ignores its own calls to calibrate
+        if(!calibrator.isMaestro()) {
+            calibrator.endCalibration();
+        }
 
     default:
         break;
