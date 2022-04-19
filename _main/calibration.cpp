@@ -37,9 +37,11 @@ bool Calibrator::waiting() {
 }
 
 void Calibrator::resetWait() {
+    Serial.printf("Resetting wait\n");
     cancel_alarm(waitAlarmId);
-    waitAlarmId = add_alarm_in_ms(WAIT_TIME_MS, [](long int, void*) 
-                                  -> long long int {calibrator.endWait(); return 0;}, NULL, false);
+    waitAlarmId = add_alarm_in_ms(WAIT_TIME_MS, [](long int, void* instance) 
+                                  -> long long int {((Calibrator*) instance)->endWait(); Serial.printf("Alarm callback"); return 0;}, this, true);
+    //waitAlarmId = add_alarm_in_ms(WAIT_TIME_MS, clbck, this, true);
 }
 
 bool Calibrator::waitingIds() {
@@ -48,8 +50,8 @@ bool Calibrator::waitingIds() {
 
 void Calibrator::resetWaitId() {
     cancel_alarm(waitAlarmId);
-    waitAlarmId = add_alarm_in_ms(ID_WAIT_TIME_MS, [](long int, void*) 
-                                  -> long long int {calibrator.endWaitId(); return 0;}, NULL, false);
+    waitAlarmId = add_alarm_in_ms(ID_WAIT_TIME_MS, [](long int, void* instance) 
+                                  -> long long int {((Calibrator*) instance)->endWaitId(); return 0;}, this, true);
 }
 
 float Calibrator::getGainId(signed char id) {
@@ -97,7 +99,8 @@ void Calibrator::calibrateGainId(signed char id) {
 
 void Calibrator::selfCalibrate(signed char selfId) {
     // Ask the controller to set the desired duty cycle
-    controller.setDutyCycle(FIRST_DUTY_CALIBRATION);
+    //controller.setDutyCycle(FIRST_DUTY_CALIBRATION);
+    analogWrite(LED_PIN, (int) (FIRST_DUTY_CALIBRATION * DAC_RANGE));
     // Wait for first measurement steady-state
     delay(STEADY_STATE_WAIT_MS);
     float firstDutyVoltage = measureVoltage(CALIBRATION_VOLTAGE_SAMPLES);
@@ -107,7 +110,8 @@ void Calibrator::selfCalibrate(signed char selfId) {
     delay(SYNCRONIZATION_WAIT_MS);
 
     // Ask the controller to set the desired duty cycle
-    controller.setDutyCycle(SECOND_DUTY_CALIBRATION);
+    //controller.setDutyCycle(SECOND_DUTY_CALIBRATION);
+    analogWrite(LED_PIN, (int) (SECOND_DUTY_CALIBRATION * DAC_RANGE));
     // Wait for second measurement steady-state
     delay(STEADY_STATE_WAIT_MS);
     float secondDutyVoltage = measureVoltage(CALIBRATION_VOLTAGE_SAMPLES);
@@ -127,7 +131,8 @@ void Calibrator::selfCalibrate(signed char selfId) {
     delay(SYNCRONIZATION_WAIT_MS);
 
     // Turn the light off, as to not disturb the other calibrations
-    controller.setDutyCycle(0.0f);
+    //controller.setDutyCycle(0.0f);
+    analogWrite(LED_PIN, 0);
 }
 
 void Calibrator::endCalibration() {

@@ -31,7 +31,7 @@ bool Comms::joinNetwork()
             ret = Wire.endTransmission(false);
         } while (ret == 4);
 
-        if (ret)
+        if (ret == 0)
         {
             my_id = my_potential_addr - addr_offset;
             myID = my_id;
@@ -45,7 +45,7 @@ bool Comms::joinNetwork()
                 ret = Wire.endTransmission(true);
             } while(ret == 4);
 
-            if(my_id == 0x0)
+            if(my_id == 0)
                 calibrator.resetWait();
             return true;
         }
@@ -67,14 +67,16 @@ void Comms::calibrateNetwork() {
     // replies with their id.
     // Block while waiting for the ids to stop arriving,
     // hijacking the eventLoop.
+    calibrator.resetWaitId();
     while(calibrator.waitingIds()) eventLoop();
-
+    Serial.print("Calibration starting.\n");
     // After the highest id has been found, order everyone to calibrate,
     // in order.
-    for(signed char i = 0; i < calibrator.getHighestId(); i++) {
+    for(signed char i = 0; i <= calibrator.getHighestId(); i++) {
         // Order luminaire i to run its calibration cycle. Also
         // lets the other luminaires know that i is about to run
         // its calibration cycle in order to calibrate coupled gains.
+        Serial.printf("Calibrating luminaire %d\n", i);
         do {
             Wire.beginTransmission(0x0);
             Wire.write(MSG_TYPE_CALIBRATE_ID);
@@ -187,9 +189,9 @@ void Comms::processReceivedData()
     {
     // If a command was issued to me, I will execute it and reply with the result.
     case MSG_TYPE_COMMAND:
+        commandRet = parser.executeCommand(receivedData);
         Wire.beginTransmission(0);
         Wire.write(MSG_TYPE_REPLY);
-        commandRet = parser.executeCommand(receivedData);
         Wire.write(commandRet);
         Wire.endTransmission();
         break;
@@ -200,13 +202,15 @@ void Comms::processReceivedData()
     case MSG_TYPE_STREAM:
         Serial.printf("%s\n", receivedData);
         break;
-    // In case someone just waked-up and I'm id=0, I'll see if we're waiting
+        
+    // In case someone has just woken up and I'm id=0, I'll see if we're waiting
     // to start calibration. If yes, reset the counter back to the start.
     case MSG_TYPE_WAKEUP:
-        if(my_id == 0 && calibrator.waiting()) {
+        if(my_id == 0x0 && calibrator.waiting()) {
             calibrator.resetWait();
         }
         break;
+
     case MSG_TYPE_BEGIN_CALIBRATION:
         // The maestro ignores its own calls to calibrate
         if(!calibrator.isMaestro()) {
@@ -221,10 +225,13 @@ void Comms::processReceivedData()
             calibrator.resetWaitId();
         }
         break;
+
     case MSG_TYPE_FIND_HIGHEST_ID:
+        Serial.printf("Received highest id: %d\n", receivedData[0]);
         calibrator.setHighestId((signed char) receivedData[0]);
         calibrator.resetWaitId();
         break;
+
     case MSG_TYPE_CALIBRATE_ID:
         // The maestro ignores its own calls to calibrate
         if(!calibrator.isMaestro()) {
@@ -234,6 +241,7 @@ void Comms::processReceivedData()
                 calibrator.selfCalibrate(my_id);
         }
         break;
+
     case MSG_TYPE_END_CALIBRATION:
         // The maestro ignores its own calls to calibrate
         if(!calibrator.isMaestro()) {

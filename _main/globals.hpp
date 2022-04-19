@@ -8,7 +8,7 @@
 // Constant values for configuring the micro controller
 const int BAUD_RATE = 115200;
 const int DAC_RANGE = 4096;
-const int LED_PIN = 15;
+const int LED_PIN = 13;
 const int LDR_PIN = A0;
 const int PWM_FREQUENCY = 60000;
 const int MAX_VOLTAGE_SAMPLES = 100;

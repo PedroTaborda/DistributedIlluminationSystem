@@ -56,6 +56,7 @@ CommandParser parser(
         {'\0', "", "", NULL, NULL}}},
     {'p', "", "ack", noArgCom([](){ACK}), NULL},
     {'t', "", "time", printfCom("t %d %lu", myID, millis()), NULL},
+    {'k', "<int>", "callibrator gain my id", intArgCom([](int id) {printI2C("k %d %f", myID, calibrator.getGainId(id)) }), NULL},
     {'\0', "", "", NULL, NULL}
 }
 );
@@ -65,15 +66,24 @@ Comms comms(parser);
 // CORE 0 is in charge of communications with the computer
 // CORE 1 handles the controller
 
+
 void setup() {
     // Initialize Serial protocol
     Serial.begin();
+    alarm_pool_init_default();
     comms.init();
     comms.joinNetwork();
+    
+    gammaFactor = 1;
 
-    while(calibrator.waiting()) ;
+    Serial.printf("Gamma Factor: %f\n", gammaFactor);
 
-    if(comms.my_id == 0x0)
+    while(calibrator.waiting()) {
+        comms.eventLoop(); // Run event loop to be able to reset wait whenever new nodes join the network
+        Serial.printf("Waiting for calibration...\n");
+    }
+    Serial.printf("Done waiting. Calibration starting...\n");
+    if(comms.my_id == 0)
         comms.calibrateNetwork();
     /*
         // Pause the other core and read constants from the EEPROM

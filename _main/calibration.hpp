@@ -49,8 +49,8 @@ private:
     float staticGains[MAX_DEVICES];
     float externalLuminance;
 
-    bool isWaiting = true;
-    bool isWaitingId = true;
+    volatile bool isWaiting = true;
+    volatile bool isWaitingId = true;
     bool maestro = false;
     alarm_id_t waitAlarmId;
 };

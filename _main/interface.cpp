@@ -22,7 +22,7 @@ const int NUMBER_COMMANDS = sizeof(commandStrings) / sizeof(char *);
 
 void parseSerial(Comms comms) {
     char *string = (char *)Serial.readStringUntil('\n').c_str();
-
+    Serial.printf("Received: '%s'\n", string);
     int ret = comms.processCommand(string);
     (void)ret;
     //Serial.printf("Process command returned %d\n", ret);
