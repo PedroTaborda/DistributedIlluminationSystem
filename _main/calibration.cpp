@@ -40,8 +40,7 @@ void Calibrator::resetWait() {
     Serial.printf("Resetting wait\n");
     cancel_alarm(waitAlarmId);
     waitAlarmId = add_alarm_in_ms(WAIT_TIME_MS, [](long int, void* instance) 
-                                  -> long long int {((Calibrator*) instance)->endWait(); Serial.printf("Alarm callback"); return 0;}, this, true);
-    //waitAlarmId = add_alarm_in_ms(WAIT_TIME_MS, clbck, this, true);
+                                  -> long long int {((Calibrator*) instance)->endWait(); return 0;}, this, true);
 }
 
 bool Calibrator::waitingIds() {
