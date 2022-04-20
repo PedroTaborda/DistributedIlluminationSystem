@@ -20,6 +20,8 @@ class Buffer {
 
     T getBegin(int index) volatile { return buffer[(currentHead - index) % SIZE]; }
 
+    T indexFromCustomHead(int index, int customHead) volatile { return buffer[(customHead + index) % SIZE]; }
+
     // number of available items
     int available() volatile { return items; }
 
