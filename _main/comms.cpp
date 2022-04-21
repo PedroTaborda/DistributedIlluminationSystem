@@ -35,9 +35,9 @@ bool Comms::joinNetwork()
         {
             my_id = my_potential_addr - addr_offset;
             myID = my_id;
-            Wire1.begin(my_potential_addr);
             Wire1.onReceive([](int i){ _comms->onReceive(i); });
             Wire1.onRequest([](){ _comms->onRequest(); });
+            Wire1.begin(my_potential_addr);
             do
             {
                 Wire.beginTransmission(0x0);
@@ -55,13 +55,15 @@ bool Comms::joinNetwork()
 
 void Comms::calibrateNetwork() {
     // Warn everybody calibration is starting
+    int ret;
     do {
         Wire.beginTransmission(0x0);
         Wire.write(MSG_TYPE_BEGIN_CALIBRATION);
-    } while(Wire.endTransmission(true) == 4);
+        ret = Wire.endTransmission(true); // BUG: gets stuck here if alone in network
+        Serial.printf("Ret: %d\n", ret);
+    } while(ret == 4);
     // Become the maestro
     calibrator.becomeMaestro();
-
     // Everybody should know that now only calibration messages
     // are being traded. Every luminaire in the network now
     // replies with their id.
@@ -104,6 +106,8 @@ void Comms::calibrateNetwork() {
     } while(Wire.endTransmission(true) == 4);
 
     calibrator.endCalibration();
+    Serial.printf("Calibrated %d luminaires.\n", calibrator.getHighestId());
+    Serial.printf("Calibration complete.\n");
 }
 
 ProcessingResult Comms::processCommand(const char *command)
@@ -212,6 +216,7 @@ void Comms::processReceivedData()
         break;
 
     case MSG_TYPE_BEGIN_CALIBRATION:
+        Serial.printf("Received begin calibration signal.\n");
         // The maestro ignores its own calls to calibrate
         if(!calibrator.isMaestro()) {
             // Broadcast our id so the highest id can be determined

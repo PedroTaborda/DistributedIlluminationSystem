@@ -5,6 +5,14 @@
 
 #include "controller.hpp"
 
+#define DEBUG
+
+#ifdef DEBUG
+#define DEBUG_PRINT(...) {Serial.print("[DEBUG] ");Serial.printf(__VA_ARGS__);}
+#else
+#define DEBUG_PRINT(...) {}
+#endif
+
 // Constant values for configuring the micro controller
 const int BAUD_RATE = 115200;
 const int DAC_RANGE = 4096;

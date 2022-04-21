@@ -4,6 +4,18 @@
 #include "parser.hpp"
 #include <Arduino.h>
 
+#define SEND_MSG(addr, timeout_ms, WRITE_STATEMENTS)            \
+    {                                                           \
+        int ret;                                                \
+        long t0 = millis();                                     \
+        do                                                      \
+        {                                                       \
+            Wire.beginTransmission(addr);                       \
+            WRITE_STATEMENTS                                    \
+            ret = Wire.endTransmission(timeout_ms);             \
+        } while ((ret == 4) && ((millis() - t0) < timeout_ms)); \
+    }
+
 #define SDA_MASTER_PIN 16
 #define SCL_MASTER_PIN 17
 #define SDA_SLAVE_PIN 14

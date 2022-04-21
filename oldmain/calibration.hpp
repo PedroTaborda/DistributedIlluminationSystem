@@ -5,6 +5,8 @@
 
 void calibrateGain();
 
+void calibrateGamma();
+
 inline constexpr unsigned long WAIT_TIME_MS = 1000;
 inline constexpr unsigned long ID_WAIT_TIME_MS = 100;
 inline constexpr unsigned long STEADY_STATE_WAIT_MS = 3000;

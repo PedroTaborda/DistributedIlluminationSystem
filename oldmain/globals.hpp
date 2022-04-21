@@ -3,7 +3,15 @@
 
 #include <Arduino.h>
 
-#include "controller2.hpp"
+#include "controller.hpp"
+
+#define DEBUG
+
+#ifdef DEBUG
+#define DEBUG_PRINT(...) {Serial.print("[DEBUG] ");Serial.printf(__VA_ARGS__);}
+#else
+#define DEBUG_PRINT(...) {}
+#endif
 
 // Constant values for configuring the micro controller
 const int BAUD_RATE = 115200;
@@ -15,7 +23,6 @@ const int MAX_VOLTAGE_SAMPLES = 100;
 const float FLOAT_RELATIVE_TOLERANCE = 0.001f;
 
 // System parameters
-#define SAMPLE_PERIOD_US (10000)
 extern float gammaFactor;
 extern double tauAscending[10], tauDescending[10];
 extern double luxAscending[10], luxDescending[10];
@@ -25,15 +32,28 @@ extern float ambientIlluminance;
 // Controller Instance
 extern volatile Controller controller;
 
-extern bool streamLuminance;
-extern bool streamDuty;
-extern bool streamJitter;
-extern bool streamIntegralError;
-extern bool streamTrackingError;
-extern bool streamSimulator;
-extern bool streamReference;
+// Buffers for variables
+extern volatile Buffer<float, 60*100> luminanceBuffer;
+extern volatile Buffer<float, 60*100> dutyBuffer;
+extern bool streamLuminanceBuffer;
+extern bool streamDutyBuffer;
+extern VariableStream streamer;
+extern volatile double energy;
+extern volatile double visibilityAccumulator;
+extern volatile double flickerAccumulator;
+extern volatile double previousFlicker;
+extern volatile double previousLux;
+extern volatile unsigned long sampleNumber;
 
 // Alarm Pool object to allow interrupts on the second core
 extern alarm_pool_t* core1AlarmPool;
 
-#endif  // GLOBALS_HPP
+// Copy buffer and related variables. This is used to transfer a
+// buffer from core 1 to core 0, bypassing the FIFO comunication queue
+// between cores, given the information volume.
+extern bool bufferLock;
+extern int dmaChannel;
+extern float copyBuffer[60*100];
+extern int currentHead;
+
+#endif //GLOBALS_HPP

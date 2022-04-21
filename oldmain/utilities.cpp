@@ -7,19 +7,59 @@
 #include "globals.hpp"
 
 float LDRVoltageToLux(float voltage) {
-    float R = 10e3;   // Fixed resistance value
-    float Vcc = 3.3;  // Fixed source voltage
-
-    // Determine the LDR's resistance from the voltage divider.
-    float R_LDR = R * (Vcc - voltage) / voltage;
-
-    // Determine the LUX measured by the LDR using the relationship
-    // between its resistance and the LUX.
-    float LUX = pow(10, log10(225000 / R_LDR) / gammaFactor + 1);
-
+    float R_LDR = v2r(voltage);
+    float LUX = r2l(R_LDR);
     return LUX;
 }
 
+float d2l(float d) {
+    return d * gain + ambientIlluminance;
+}
+
+float l2d(float l) {
+    return (l - ambientIlluminance)/gain;
+}
+
+float v2l(float v){ // same as LDRVoltageToLux, but with "standard" naming
+    return r2l(v2r(v));
+}
+
+float r2l(float r){
+    // Determine the LUX measured by the LDR using the relationship
+    // between its resistance and the LUX.
+    return pow(10, log10(225000 / r) / gammaFactor + 1);
+}
+
+float v2r(float v)
+{
+    // Determine the LDR's resistance from the voltage divider.
+    float R = 10000.0;
+    float Vcc = 3.3;
+    float Rldr = (R * Vcc / v) - R;
+    return Rldr;
+}
+
+float l2r(float l)
+{
+    float b = log10(225000) - (-gammaFactor);
+    float logRldr = (-gammaFactor)*log10(l) + b;
+}
+
+float l2v(float l)
+{
+    float R = 10000.0;
+    float Vcc = 3.3;
+    float Rldr = l2r(l);
+    return Vcc * R / (Rldr + R);
+}
+
+/*
+log10(R) = m log10(l) + b
+log10(R) - b = m log10(l)
+// R = 225000 -> l = 10
+log10(225000) - m = b
+log10(R/225000)/m + 1 = log10(l)
+*/
 float measureVoltage(int numberSamples) {
     // Sample the voltage divider circuit numberSamples times
     if (numberSamples > MAX_VOLTAGE_SAMPLES) return -1.0f;
@@ -34,6 +74,10 @@ float measureVoltage(int numberSamples) {
     std::sort(samples, samples + numberSamples);
 
     return samples[numberSamples / 2];
+}
+
+float measureVoltage(){
+    return measureVoltage(5);
 }
 
 void set_u(float duty) { analogWrite(LED_PIN, (int)(duty * DAC_RANGE)); }

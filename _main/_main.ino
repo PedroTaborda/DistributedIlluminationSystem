@@ -51,6 +51,7 @@ CommandParser parser(
     (Command[]){
     {'a', "<float>", "reply is number + 2", floatArgCom([](float f){printI2C("a %d %f", myID, f+2)}), NULL},
     {'h', "", "help", noArgCom(help), NULL},
+    {'c', "", "callibrate", [](const char *){func(); ACK}, NULL},
     {'g', "", "get command", NULL, (Command[]){
         {'r', "", "reference", printfCom("reference :)"), NULL},
         {'\0', "", "", NULL, NULL}}},
@@ -67,23 +68,26 @@ Comms comms(parser);
 void setup() {
     // Initialize Serial protocol
     Serial.begin();
+    while(!Serial);
     alarm_pool_init_default();
     comms.init();
     comms.joinNetwork();
+
+    DEBUG_PRINT("Connected to network as node '%d'\n", myID)
     
     gammaFactor = 1;
 
-    Serial.printf("Gamma Factor: %f\n", gammaFactor);
-
+/*
     calibrator.resetWait();
     while(calibrator.waiting()) {
         comms.eventLoop(); // Run event loop to be able to reset wait whenever new nodes join the network
-        Serial.printf("Waiting for calibration...\n");
+        DEBUG_PRINT("Waiting for calibration...\n")
         delay(100);
     }
-    Serial.printf("Done waiting. Calibration starting...\n");
+    DEBUG_PRINT("Done waiting. Calibration starting...\n")
     if(comms.my_id == 0)
         comms.calibrateNetwork();
+*/
 }
 
 void loop() {

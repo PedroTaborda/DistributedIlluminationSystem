@@ -22,6 +22,20 @@ bool fequal(float left, float right);
     noInterrupts();      \
     x interrupts();
 
+float d2l(float d);
+
+float v2l(float v);
+
+float v2r(float v);
+
+float r2l(float r);
+
+float l2d(float l);
+
+float l2r(float l);
+
+float l2v(float l);
+
 // Union to simplify passing floats in the inter-core FIFO queues.
 // typedef union {
 //     float from;
