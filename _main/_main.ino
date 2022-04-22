@@ -77,8 +77,7 @@ void setup() {
     
     gammaFactor = 1;
 
-/*
-    calibrator.resetWait();
+    //calibrator.resetWait();
     while(calibrator.waiting()) {
         comms.eventLoop(); // Run event loop to be able to reset wait whenever new nodes join the network
         DEBUG_PRINT("Waiting for calibration...\n")
@@ -87,7 +86,7 @@ void setup() {
     DEBUG_PRINT("Done waiting. Calibration starting...\n")
     if(comms.my_id == 0)
         comms.calibrateNetwork();
-*/
+
 }
 
 void loop() {
