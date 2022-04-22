@@ -505,13 +505,13 @@ void configCommand(char *arguments) {
         Serial.print("Static gain: "); Serial.println(gain);
         Serial.println("Ascending tau.");
         for(unsigned int i = 0; i < 10; i++) {
-            Serial.print("Final lux: "); Serial.print(luxAscending[i]); Serial.print(" lux");
+            //Serial.print("Final lux: "); Serial.print(luxAscending[i]); Serial.print(" lux");
             Serial.print("\tTau: "); Serial.print(tauAscending[i]); Serial.println(" s");
         }
         Serial.print('\n');
         Serial.println("Descending tau.");
         for(unsigned int i = 0; i < 10; i++) {
-            Serial.print("Final lux: "); Serial.print(luxDescending[i]); Serial.print(" lux");
+            //Serial.print("Final lux: "); Serial.print(luxDescending[i]); Serial.print(" lux");
             Serial.print("\tTau: "); Serial.print(tauDescending[i]); Serial.println(" s");
         }
 

@@ -13,6 +13,13 @@
 #define DEBUG_PRINT(...) {}
 #endif
 
+const int tauN = 10;
+struct luminaireParams{
+    float gammaFactor = 1.0;
+    float tauAscending[tauN];
+    float tauDescending[tauN];
+};
+
 // Constant values for configuring the micro controller
 const int BAUD_RATE = 115200;
 const int DAC_RANGE = 4096;
@@ -25,7 +32,7 @@ const float FLOAT_RELATIVE_TOLERANCE = 0.001f;
 // System parameters
 extern float gammaFactor;
 extern double tauAscending[10], tauDescending[10];
-extern double luxAscending[10], luxDescending[10];
+extern double voltageAscending[10], voltageDescending[10];
 extern float gain;
 extern float ambientIlluminance;
 
@@ -55,5 +62,8 @@ extern bool bufferLock;
 extern int dmaChannel;
 extern float copyBuffer[60*100];
 extern int currentHead;
+
+extern luminaireParams latestCalibration;
+luminaireParams activeParams();
 
 #endif //GLOBALS_HPP

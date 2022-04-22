@@ -47,11 +47,17 @@ int myID = 0;
 
 IntFloat intfloat0, intfloat1;
 
+
 CommandParser parser(
     (Command[]){
     {'a', "<float>", "reply is number + 2", floatArgCom([](float f){printI2C("a %d %f", myID, f+2)}), NULL},
     {'h', "", "help", noArgCom(help), NULL},
-    {'c', "", "callibrate", [](const char *){func(); ACK}, NULL},
+    {'C', "", "calibration utilities", NULL, (Command[]){
+        {'a', "", "calibrate gamma and tau, save these parameters to EEPROM and activate them", noArgCom(calibrateAutoCommand), NULL},
+        {'c', "<bool: gamma> <bool: tau>", "calibrates gamma and/or tau and saves the calibrated parameters", calibrateCommand, NULL},
+        {'s', "<bool: gamma> <bool: tau>", "saves gamma and/or tau from calibrated parameters as final (writes to EEPROM)", saveCalibrationCommand, NULL},
+        {'p', "", "print latest calibrated parameters and active parameters", noArgCom(printCalibratedCommand), NULL},
+        {'\0', "", "", NULL, NULL}}},
     {'g', "", "get command", NULL, (Command[]){
         {'r', "", "reference", printfCom("reference :)"), NULL},
         {'\0', "", "", NULL, NULL}}},
@@ -66,16 +72,21 @@ CommandParser parser(
 Comms comms(parser);
 
 void setup() {
+    analogWriteFreq(60000);
+    analogWriteRange(DAC_RANGE);
+    loadParamsStartup();
+    calibrateGain(); // This is only necessary for the first time calibration (to allow for tau/gamma calibration)
     // Initialize Serial protocol
     Serial.begin();
     while(!Serial);
     alarm_pool_init_default();
+    DEBUG_PRINT("Gain: %f\n", gain);
     comms.init();
     comms.joinNetwork();
 
     DEBUG_PRINT("Connected to network as node '%d'\n", myID)
     
-    gammaFactor = 1;
+    //gammaFactor = 1;
 
     //calibrator.resetWait();
     while(calibrator.waiting()) {
