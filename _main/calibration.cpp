@@ -85,8 +85,8 @@ double estimateTauTrial(float V0, float Vf, float maxTrialDurationMS)
 
     // these time representations use the 64-bit microsecond timer, valid
     // for millions of years
-    absolute_time_t t0_us;
-    absolute_time_t t_cur_us;
+    absolute_time_t t0;
+    absolute_time_t t;
 
     double y[N] = {0.0};
     double V[N] = {0.0};
@@ -96,17 +96,17 @@ double estimateTauTrial(float V0, float Vf, float maxTrialDurationMS)
     for (unsigned int i = 0; i < N; i++)
     {
         V[i] = (double)measureVoltage(11);
-        t_cur_us = get_absolute_time();
+        t = get_absolute_time();
         if (i == 0)
-            t0_us = t_cur_us;
+            t0 = t;
+        y[i] = ((double)absolute_time_diff_us(t0, t)) / 1e6;
+        DEBUG_PRINT("%d: V: %f, t: %f\n", i, V[i], y[i]);
         if ((V[i] - V0) / (Vf - V0) > TRIAL_END_THRESHOLD)
         {
-            n = i;
+            n = i+1;
             break;
         }
-        y[i] = ((double)absolute_time_diff_us(t0_us, t_cur_us)) / 1e6;
-        DEBUG_PRINT("%d: V: %f, t: %f\n", i, V[i], y[i]);
-        busy_wait_until(delayed_by_us(t0_us, SAMPLE_TIME_US * (i + 1)));
+        busy_wait_until(delayed_by_us(t0, SAMPLE_TIME_US * (i + 1)));
     }
 
     if (n == N)
@@ -137,13 +137,15 @@ void calibrateTau(unsigned int nTrials, unsigned int tauSteps, float *tauUp, flo
     {
         for (unsigned int j = 0; j < nTrials; j++)
         {
-            set_u(0.0);
-            delay(STEADY_STATE_WAIT_MS);
-            V0 = measureVoltage(11);
-            Vf = l2v(d2l(0.1 + 0.9 * ((double)i) / ((double)tauSteps - 1.0)));
-            DEBUG_PRINT("V0: %.3f, Vf: %.3f\n", V0, Vf)
-            tauBuffer[j] = estimateTauTrial(V0, Vf, MAX_TAU_TRIAL_DURATION);
-            DEBUG_PRINT("tauAscending[%d][%d] %.3f\n", i, j, tauBuffer[j])
+            do{
+                set_u(0.0);
+                delay(STEADY_STATE_WAIT_MS);
+                V0 = measureVoltage(11);
+                Vf = l2v(d2l(0.1 + 0.9 * ((double)i) / ((double)tauSteps - 1.0)));
+                DEBUG_PRINT("V0: %.3f, Vf: %.3f\n", V0, Vf)
+                tauBuffer[j] = estimateTauTrial(V0, Vf, MAX_TAU_TRIAL_DURATION);
+                DEBUG_PRINT("tauAscending[%d][%d] %.3f\n", i, j, tauBuffer[j])
+            }while(tauBuffer[j] < 0.0);
         }
 
         tauUp[i] = mean(nTrials, tauBuffer);
@@ -155,13 +157,15 @@ void calibrateTau(unsigned int nTrials, unsigned int tauSteps, float *tauUp, flo
     {
         for (unsigned int j = 0; j < nTrials; j++)
         {
-            set_u(1.0);
-            delay(STEADY_STATE_WAIT_MS);
-            V0 = measureVoltage(11);
-            Vf = l2v(d2l(0.9 - (0.9 * ((float)i) / ((float)tauSteps - 1))));
-            DEBUG_PRINT("V0: %.3f, Vf: %.3f\n", V0, Vf)
-            tauBuffer[j] = estimateTauTrial(V0, Vf, MAX_TAU_TRIAL_DURATION);
-            DEBUG_PRINT("tauDescending[%d][%d] %.3f\n", i, j, tauBuffer[j])
+            do{
+                set_u(1.0);
+                delay(STEADY_STATE_WAIT_MS);
+                V0 = measureVoltage(11);
+                Vf = l2v(d2l(0.9 - (0.9 * ((float)i) / ((float)tauSteps - 1))));
+                DEBUG_PRINT("V0: %.3f, Vf: %.3f\n", V0, Vf)
+                tauBuffer[j] = estimateTauTrial(V0, Vf, MAX_TAU_TRIAL_DURATION);
+                DEBUG_PRINT("tauDescending[%d][%d] %.3f\n", i, j, tauBuffer[j])
+            }while(tauBuffer[j] < 0.0);
         }
         tauDown[i] = mean(nTrials, tauBuffer);
         DEBUG_PRINT("tauDescending[%d]: %.3f\n", i, tauDown[i])
