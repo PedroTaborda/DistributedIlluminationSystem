@@ -1,6 +1,8 @@
 #include "simulator.hpp"
 
 #include "globals.hpp"
+#include "math_utils.hpp"
+#include "utilities.hpp"
 
 #include <Arduino.h>
 
@@ -8,6 +10,14 @@
 
 Simulator::Simulator()
 {
+    range(tauN, finalVoltageAscending , 0.1, 1.0);
+    range(tauN, finalVoltageDescending, 0.9, 0.0);
+
+    for(int i = 0; i < tauN; i++)
+    {
+        tauAscending[i]  = l2v(d2l(tauAscending[i]));
+        tauDescending[i] = l2v(d2l(tauDescending[i]));
+    }
 }
 
 void Simulator::initialize(unsigned long initialTime, double initialVoltage, double initialDuty) volatile
@@ -43,7 +53,7 @@ double Simulator::getLuminosity(unsigned long time) volatile{
 void Simulator::changeInput(unsigned long time, double duty, double currentVoltage) volatile{
     currentInitialTime = time;
     currentInitialVoltage = currentVoltage;
-    currentTimeConstant = timeConstant(currentInitialDuty, duty);
+    currentTimeConstant = timeConstant(currentVoltage, l2v(d2l(duty)));
     currentInitialDuty = duty;
 }
 
@@ -63,42 +73,9 @@ double Simulator::luxToVoltage(double lux) volatile{
     return predictedVoltage;
 }
 
-double Simulator::timeConstant(double oldDuty, double newDuty) volatile{
-    double oldLux = gain * oldDuty + ambientIlluminance;
-    double newLux = gain * newDuty + ambientIlluminance;
-
-    if(oldLux < newLux)
-        return ascendingTimeConstant(newLux);
+double Simulator::timeConstant(double initialVoltage, double finalVoltage) volatile{
+    if (initialVoltage < finalVoltage)
+        return interpolate(tauN, (double *)finalVoltageAscending, tauAscending, finalVoltage);
     else
-        return descendingTimeConstant(newLux);
-}
-
-double Simulator::ascendingTimeConstant(double lux) volatile{
-    int index = 9;
-    if(lux <= luxAscending[0])
-        return tauAscending[0];
-    else if(lux >= luxAscending[9])
-        return tauAscending[9];
-    else
-        for(;lux < luxAscending[index]; index--);
-
-    double remainder = (lux - luxAscending[index]) / (luxAscending[index + 1] - luxAscending[index]);
-    double tau = tauAscending[index] * (1 - remainder) + tauAscending[index + 1] * remainder;
-
-    return tau;
-}
-
-double Simulator::descendingTimeConstant(double lux) volatile{
-    int index = 9;
-    if(lux <= luxDescending[0])
-        return tauDescending[0];
-    else if(lux >= luxDescending[9])
-        return tauDescending[9];
-    else
-        for(;lux < luxDescending[index]; index--);
-
-    double remainder = (lux - luxDescending[index]) / (luxDescending[index + 1] - luxDescending[index]);
-    double tau = tauDescending[index] * (1 - remainder) + tauDescending[index + 1] * remainder;
-
-    return tau;
+        return interpolate(tauN, (double *)finalVoltageDescending, tauDescending, finalVoltage);
 }

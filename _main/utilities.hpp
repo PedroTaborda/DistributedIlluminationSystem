@@ -9,6 +9,20 @@ float LDRVoltageToLux(float voltage);
 // to filter noise
 float measureVoltage(int numberSamples);
 
+float d2l(float d);
+
+float v2l(float v);
+
+float v2r(float v);
+
+float r2l(float r);
+
+float l2d(float l);
+
+float l2r(float l);
+
+float l2v(float l);
+
 // write duty_cycle to DAC, duty is in [0, 1]
 void set_u(float duty);
 // Checks if two floating point numbers are equal up to some precision

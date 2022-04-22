@@ -36,3 +36,23 @@ double mean(int n, double x[])
     }
     return sum / (double)n;
 }
+
+double interpolate(int n, double vecx[], double vecy[], double x)
+{
+    int i = 0;
+    while (i < n && vecx[i] < x)
+        i++;
+    if (i == 0)
+        return vecy[0];
+    if (i == n)
+        return vecy[n - 1];
+    double dx = vecx[i] - vecx[i - 1];
+    double dy = vecy[i] - vecy[i - 1];
+    return vecy[i - 1] + (x - vecx[i - 1]) * dy / dx;
+}
+
+void range(int n, double *range, double start, double step)
+{
+    for (int i = 0; i < n; i++)
+        range[i] = start + i * step;
+}

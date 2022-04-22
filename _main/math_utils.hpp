@@ -11,3 +11,7 @@ struct StraightLine{
 StraightLine linearRegression(int n, double x[], double y[]);
 
 double mean(int n, double x[]);
+
+double interpolate(int n, double vecx[], double vecy[], double x);
+
+void range(int n, double *range, double start, double step);

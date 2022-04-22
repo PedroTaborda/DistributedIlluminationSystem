@@ -6,18 +6,57 @@
 
 #include "globals.hpp"
 
-float LDRVoltageToLux(float voltage) {
-    float R = 10e3;   // Fixed resistance value
-    float Vcc = 3.3;  // Fixed source voltage
+float LDRVoltageToLux(float voltage)
+{
+    float R_LDR = v2r(voltage);
+    float LUX = r2l(R_LDR);
+    return LUX;
+}
 
-    // Determine the LDR's resistance from the voltage divider.
-    float R_LDR = R * (Vcc - voltage) / voltage;
+float d2l(float d)
+{
+    return d * (gain ? gain : 10.0) + ambientIlluminance;
+}
 
+float l2d(float l)
+{
+    return (l - ambientIlluminance) / (gain ? gain : 10.0);
+}
+
+float v2l(float v)
+{ // same as LDRVoltageToLux, but with "standard" naming
+    return r2l(v2r(v));
+}
+
+float r2l(float r)
+{
     // Determine the LUX measured by the LDR using the relationship
     // between its resistance and the LUX.
-    float LUX = pow(10, log10(225000 / R_LDR) / gammaFactor + 1);
+    return pow(10, log10(225000 / r) / (gammaFactor?gammaFactor:0.8) + 1);
+}
 
-    return LUX;
+float v2r(float v)
+{
+    // Determine the LDR's resistance from the voltage divider.
+    float R = 10000.0;
+    float Vcc = 3.3;
+    float Rldr = (R * Vcc / v) - R;
+    return Rldr;
+}
+
+float l2r(float l)
+{
+    float b = log10(225000) - (-gammaFactor);
+    float logRldr = (-gammaFactor) * log10(l) + b;
+    return pow(10, logRldr);
+}
+
+float l2v(float l)
+{
+    float R = 10000.0;
+    float Vcc = 3.3;
+    float Rldr = l2r(l);
+    return Vcc * R / (Rldr + R);
 }
 
 float measureVoltage(int numberSamples) {

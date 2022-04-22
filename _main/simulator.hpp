@@ -21,9 +21,11 @@ private:
     double luxToVoltage(double lux) volatile;
 
     // Interpolate the tau functions
-    double timeConstant(double oldDuty, double newDuty) volatile;
-    double ascendingTimeConstant(double duty) volatile;
-    double descendingTimeConstant(double duty) volatile;
+    double timeConstant(double initialVoltage, double finalVoltage) volatile;
+
+    // Precomputed values for voltage, as taus are indexed by voltage
+    double finalVoltageAscending[10];
+    double finalVoltageDescending[10];
 
     // State variables of the system.
     unsigned long currentInitialTime;
