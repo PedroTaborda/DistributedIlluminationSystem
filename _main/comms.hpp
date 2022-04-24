@@ -4,9 +4,8 @@
 #include "parser.hpp"
 #include <Arduino.h>
 
-#define SEND_MSG(addr, timeout_ms, WRITE_STATEMENTS)            \
+#define SEND_MSG(addr, timeout_ms, WRITE_STATEMENTS, ret)       \
     {                                                           \
-        int ret;                                                \
         long t0 = millis();                                     \
         do                                                      \
         {                                                       \
@@ -71,7 +70,9 @@ enum ProcessingResult
 };
 
 const int receivedDataBufferSize = 64; // to be put in a central place
-const unsigned long timeout_ms = 20;
+const unsigned long TIMEOUT_MS = 20;
+const unsigned int RETRY_MULTIPLIER = 10;
+const unsigned long RETRY_TIMEOUT_MS = RETRY_MULTIPLIER * TIMEOUT_MS;
 const signed char addr_offset = 8;
 inline constexpr unsigned long MESSAGE_SLACK_WAIT_MS = 500;
 

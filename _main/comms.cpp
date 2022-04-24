@@ -16,8 +16,8 @@ void Comms::init() volatile
     Wire1.setSDA(SDA_SLAVE_PIN);
     Wire1.setSCL(SCL_SLAVE_PIN);
 
-    Wire.setTimeout(timeout_ms);
-    Wire1.setTimeout(timeout_ms);
+    Wire.setTimeout(TIMEOUT_MS);
+    Wire1.setTimeout(TIMEOUT_MS);
     _comms = this;
 }
 
@@ -26,11 +26,7 @@ bool Comms::joinNetwork() volatile
     int ret;
     for (int my_potential_addr = my_id + addr_offset; my_potential_addr < 128; my_potential_addr++)
     {
-        do
-        {
-            Wire.beginTransmission(my_potential_addr);
-            ret = Wire.endTransmission(false);
-        } while (ret == 4);
+        SEND_MSG(my_potential_addr, RETRY_TIMEOUT_MS, ,ret)
         DEBUG_PRINT("Address %d done: ret = %d\n", my_potential_addr, ret)
 
         // If no one was at the address being probed, it is now
@@ -42,12 +38,10 @@ bool Comms::joinNetwork() volatile
             Wire1.onReceive([](int i){ _comms->onReceive(i); });
             Wire1.onRequest([](){ _comms->onRequest(); });
             Wire1.begin(my_potential_addr);
-            do
-            {
-                Wire.beginTransmission(0x0);
-                Wire.write(MSG_TYPE_WAKEUP);
-                ret = Wire.endTransmission(true);
-            } while(ret == 4);
+            
+            SEND_MSG(0, RETRY_TIMEOUT_MS,
+                Wire.write(MSG_TYPE_WAKEUP);,
+            ret)
             DEBUG_PRINT("Broadcasting wakeup as id %d\n", my_id)
 
             if(my_id == 0)
@@ -60,14 +54,10 @@ bool Comms::joinNetwork() volatile
 
 void Comms::calibrateNetwork() volatile{
     // Warn everybody calibration is starting
-    int ret, counter = 0;
-    do {
-        Wire.beginTransmission(0x0);
-        Wire.write(MSG_TYPE_BEGIN_CALIBRATION);
-        ret = Wire.endTransmission(true); // BUG: gets stuck here if alone in network
-        Serial.printf("Ret: %d\n", ret);
-        counter += 1;
-    } while(ret == 4 && counter <= 10);
+    int ret;
+    SEND_MSG(0, RETRY_TIMEOUT_MS,
+        Wire.write(MSG_TYPE_BEGIN_CALIBRATION);,
+    ret)
     // Become the maestro
     calibrator.becomeMaestro();
     // Everybody should know that now only calibration messages
@@ -77,23 +67,18 @@ void Comms::calibrateNetwork() volatile{
     // hijacking the eventLoop.
     calibrator.resetWaitId();
     while(calibrator.waitingIds()) eventLoop();
-    Serial.print("Calibration starting.\n");
+    DEBUG_PRINT("Calibration starting.\n");
     // After the highest id has been found, order everyone to calibrate,
     // in order.
     for(signed char i = 0; i <= calibrator.getHighestId(); i++) {
         // Order luminaire i to run its calibration cycle. Also
         // lets the other luminaires know that i is about to run
         // its calibration cycle in order to calibrate coupled gains.
-        Serial.printf("Calibrating luminaire %d\n", i);
-        counter = 0;
-        do {
-            Wire.beginTransmission(0x0);
+        DEBUG_PRINT("Calibrating luminaire %d\n", i);
+        SEND_MSG(0, RETRY_TIMEOUT_MS,
             Wire.write(MSG_TYPE_CALIBRATE_ID);
-            Wire.write(i);
-            ret = Wire.endTransmission(true);
-            counter += 1;
-        } while(ret == 4 && counter <= 10);
-
+            Wire.write(i);,
+        ret)
         // When the message gets sent, its either our time to calibrate
         // or we should look.
         if(i == my_id)
@@ -109,12 +94,9 @@ void Comms::calibrateNetwork() volatile{
     }
 
     // Let everyone know calibration is over.
-    counter = 0;
-    do {
-        Wire.beginTransmission(0x0);
-        Wire.write(MSG_TYPE_END_CALIBRATION);
-        counter += 1;
-    } while(Wire.endTransmission(true) == 4 && counter <= 10);
+    SEND_MSG(0, RETRY_TIMEOUT_MS,
+        Wire.write(MSG_TYPE_END_CALIBRATION);,
+    ret)
 
     calibrator.endCalibration();
     Serial.printf("Calibrated %d luminaires.\n", calibrator.getHighestId() + 1);
@@ -207,16 +189,17 @@ void Comms::processReceivedData() volatile
     if (receivedMsg == MSG_TYPE_NONE)
         return;
 
+    int ret;
     char *commandRet = NULL;
     switch (receivedMsg)
     {
     // If a command was issued to me, I will execute it and reply with the result.
     case MSG_TYPE_COMMAND:
         commandRet = parser.executeCommand((const char *)receivedDataBuffer);
-        SEND_MSG(0, timeout_ms,
+        SEND_MSG(0, RETRY_TIMEOUT_MS,
             Wire.write(MSG_TYPE_REPLY);
-            Wire.write(commandRet);
-        )
+            Wire.write(commandRet);,
+        ret)
         DEBUG_PRINT("Received MSG_TYPE_COMMAND with ret=%s\n", commandRet);
         break;
 
@@ -241,11 +224,10 @@ void Comms::processReceivedData() volatile
         // The maestro ignores its own calls to calibrate
         if(!calibrator.isMaestro()) {
             // Broadcast our id so the highest id can be determined
-            do {
-                Wire.beginTransmission(0x0);
+            SEND_MSG(0, RETRY_TIMEOUT_MS,
                 Wire.write(MSG_TYPE_FIND_HIGHEST_ID);
-                Wire.write(my_id);
-            } while(Wire.endTransmission(true) == 4);
+                Wire.write(my_id);,
+            ret)
         } else {
             calibrator.setHighestId(my_id);
             calibrator.resetWaitId();
