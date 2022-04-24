@@ -12,13 +12,13 @@ class Buffer {
         currentHead = 0;
     }
 
-    void insert(T value) volatile {
+    void insert(T& value) volatile {
         buffer[currentHead] = value;
         currentHead = (currentHead + 1) % SIZE;
         items = min(SIZE, items + 1);
     }
 
-    T getBegin(int index) volatile { return buffer[(currentHead - index) % SIZE]; }
+    T& getBegin(int index) volatile { return buffer[(currentHead - index) % SIZE]; }
 
     // number of available items
     int available() volatile { return items; }
