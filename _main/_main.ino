@@ -7,7 +7,6 @@
 #include "calibration.hpp"
 #include "controller.hpp"
 #include "globals.hpp"
-#include "interface.hpp"
 #include "utilities.hpp"
 #include "comms.hpp"
 #include "parser.hpp"
@@ -20,14 +19,10 @@ float ambientIlluminance = 0.f;
 double tauAscending[10], tauDescending[10];
 double luxAscending[10], luxDescending[10];
 
-volatile Controller controller;
-repeating_timer timerStruct;
-
-volatile Buffer<float, 60*100> luminanceBuffer;
-volatile Buffer<float, 60*100> dutyBuffer;
+volatile Buffer<volatile float, 60*100> luminanceBuffer;
+volatile Buffer<volatile float, 60*100> dutyBuffer;
 bool streamLuminanceBuffer = false;
 bool streamDutyBuffer = false;
-VariableStream streamer;
 volatile unsigned long lastTimestamp = 0;
 volatile double energy = 0.f;
 volatile double visibilityAccumulator = 0.f;
@@ -69,15 +64,16 @@ CommandParser parser(
 }
 );
 
-Comms comms(parser);
+volatile Comms comms(parser);
 
 void setup() {
-    analogWriteFreq(60000);
+    analogReadResolution(12);
+    analogWriteFreq(PWM_FREQUENCY);
     analogWriteRange(DAC_RANGE);
     loadParamsStartup();
-    calibrateGain(); // This is only necessary for the first time calibration (to allow for tau/gamma calibration)
+    //calibrateGain(); // This is only necessary for the first time calibration (to allow for tau/gamma calibration)
     // Initialize Serial protocol
-    Serial.begin();
+    Serial.begin(BAUD_RATE);
     while(!Serial);
     alarm_pool_init_default();
     DEBUG_PRINT("Gain: %f\n", gain);
@@ -85,25 +81,18 @@ void setup() {
     comms.joinNetwork();
 
     DEBUG_PRINT("Connected to network as node '%d'\n", myID)
-    
-    //gammaFactor = 1;
 
-    //calibrator.resetWait();
     while(calibrator.waiting()) {
         comms.eventLoop(); // Run event loop to be able to reset wait whenever new nodes join the network
-        DEBUG_PRINT("Waiting for calibration...\n")
-        delay(100);
     }
     DEBUG_PRINT("Done waiting. Calibration starting...\n")
     if(comms.my_id == 0)
         comms.calibrateNetwork();
-
 }
 
 void loop() {
     if(Serial.available() > 0)
-    {
         parseSerial(comms);
-    }
+
     comms.eventLoop();
 }

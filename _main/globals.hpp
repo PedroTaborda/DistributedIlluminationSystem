@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-#include "controller.hpp"
+#include "buffer.hpp"
 
 #define DEBUG
 
@@ -23,11 +23,17 @@ struct luminaireParams{
 // Constant values for configuring the micro controller
 const int BAUD_RATE = 115200;
 const int DAC_RANGE = 4096;
-const int LED_PIN = 13;
-const int LDR_PIN = A0;
 const int PWM_FREQUENCY = 60000;
 const int MAX_VOLTAGE_SAMPLES = 100;
 const float FLOAT_RELATIVE_TOLERANCE = 0.001f;
+
+#ifdef ZE
+const int LED_PIN = 15;
+const int LDR_PIN = A0;
+#else
+const int LED_PIN = 13;
+const int LDR_PIN = A0;
+#endif
 
 // System parameters
 extern float gammaFactor;
@@ -36,15 +42,11 @@ extern double voltageAscending[10], voltageDescending[10];
 extern float gain;
 extern float ambientIlluminance;
 
-// Controller Instance
-extern volatile Controller controller;
-
 // Buffers for variables
-extern volatile Buffer<float, 60*100> luminanceBuffer;
-extern volatile Buffer<float, 60*100> dutyBuffer;
+extern volatile Buffer<volatile float, 60*100> luminanceBuffer;
+extern volatile Buffer<volatile float, 60*100> dutyBuffer;
 extern bool streamLuminanceBuffer;
 extern bool streamDutyBuffer;
-extern VariableStream streamer;
 extern volatile double energy;
 extern volatile double visibilityAccumulator;
 extern volatile double flickerAccumulator;
