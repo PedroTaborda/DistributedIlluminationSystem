@@ -3,9 +3,12 @@
 #include "globals.hpp"
 #include "utilities.hpp"
 
+volatile Controller controller;
+repeating_timer timerStruct;
+
 Controller::Controller() {}
 
-void Controller::setup(float proportionalGain, float integralGain, repeating_timer *timerStruct) volatile {
+void Controller::setup(float proportionalGain, float integralGain) volatile {
     this->proportionalGain = proportionalGain;
     this->integralGain = integralGain;
 
@@ -27,7 +30,7 @@ void Controller::setup(float proportionalGain, float integralGain, repeating_tim
 
     int64_t delayUs = (int64_t)(samplingTime * 1e6);
 
-    alarm_pool_add_repeating_timer_us(core1AlarmPool, -delayUs, Controller::controllerLoop, (void *)this, timerStruct);
+    alarm_pool_add_repeating_timer_us(core1AlarmPool, -delayUs, Controller::controllerLoop, (void *)this, &timerStruct);
 }
 
 bool Controller::controllerLoop(repeating_timer *timerStruct) {
@@ -199,11 +202,11 @@ void Controller::turnControllerOff() volatile {
 
 void Controller::turnControllerOn() volatile { control_on_req = true; }
 
-void Controller::toggleAntiWindup() volatile { antiWindup = !antiWindup; }
+void Controller::setAntiWindup(int val) volatile { antiWindup = val; }
 
-void Controller::toggleFeedback() volatile { feedback = !feedback; }
+void Controller::setFeedback(int val) volatile { feedback = val; }
 
-void Controller::toggleFeedforward() volatile { feedforward = !feedforward; }
+void Controller::setFeedforward(int val) volatile { feedforward = val; }
 
 void Controller::setSimulator(int simulator) volatile { simulatorOn = simulator == 0 ? false : true; }
 
@@ -220,6 +223,3 @@ bool Controller::getFeedforward() volatile { return feedforward; }
 float Controller::getProportionalGain() volatile { return proportionalGain; }
 
 float Controller::getIntegralGain() volatile { return integralGain; }
-
-volatile Controller controller;
-repeating_timer timerStruct;

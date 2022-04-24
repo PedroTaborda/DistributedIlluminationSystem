@@ -37,7 +37,7 @@ public:
     Controller();
 
     // Setup function
-    void setup(float proportionalGain, float integralGain, repeating_timer *timerStruct) volatile;
+    void setup(float proportionalGain, float integralGain) volatile;
 
     // Controller loop
     static bool controllerLoop(repeating_timer *timerStruct);
@@ -54,9 +54,9 @@ public:
     // Controller settings
     void turnControllerOff() volatile;
     void turnControllerOn() volatile;
-    void toggleAntiWindup() volatile;
-    void toggleFeedback() volatile;
-    void toggleFeedforward() volatile;
+    void setAntiWindup(int val) volatile;
+    void setFeedback(int val) volatile;
+    void setFeedforward(int val) volatile;
     void setSimulator(int simulator) volatile;
     void setProportionalGain(float proportionalGain) volatile;
     void setIntegralGain(float integralGain) volatile;
