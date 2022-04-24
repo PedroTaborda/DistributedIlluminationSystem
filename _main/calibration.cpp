@@ -190,7 +190,7 @@ luminaireParams calibrateSelf(bool doGammaCalibration, bool doTauCalibration)
 
     if(doGammaCalibration)
         calibrateGain();
-        
+
     if (doTauCalibration){
         int nTrials = 5;
         calibrateTau(nTrials, tauN, params.tauAscending, params.tauDescending);
@@ -207,6 +207,7 @@ luminaireParams calibrateSelf(bool doGammaCalibration, bool doTauCalibration)
     return params;
 }
 
+#ifdef DEBUG
 void showParams(luminaireParams params)
 {
     DEBUG_PRINT("gammaFactor: %.3f\n", params.gammaFactor)
@@ -219,6 +220,7 @@ void showParams(luminaireParams params)
         DEBUG_PRINT("tauDescending[%d]: %.3f\n", i, params.tauDescending[i])
     }
 }
+#endif
 
 luminaireParams loadParamsEEPROM()
 {

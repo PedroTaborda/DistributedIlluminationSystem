@@ -5,8 +5,6 @@
 
 #include "buffer.hpp"
 
-#define DEBUG
-
 #ifdef DEBUG
 #define DEBUG_PRINT(...) {Serial.print("[DEBUG] ");Serial.printf(__VA_ARGS__);}
 #else
