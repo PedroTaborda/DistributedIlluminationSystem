@@ -112,14 +112,14 @@ CommandParser::CommandParser(Command *command_list) : command_list(command_list)
 
 /* Returns true if there is a matching command (and executes it)
  */
-char *CommandParser::executeCommand(const char *command)
+char *CommandParser::executeCommand(const char *command) volatile
 {
     return _executeCommand(command, command_list);
 }
 
 /* Retrieves luminaire ID from command string, and returns it.
  */
-signed char CommandParser::getLuminaireId(const char *command)
+signed char CommandParser::getLuminaireId(const char *command) volatile
 {
     return _getLuminaireId(command, command_list);
 }
@@ -135,7 +135,7 @@ char *help()
     return NULL;
 }
 
-const char *CommandParser::strip(const char *command)
+const char *CommandParser::strip(const char *command) volatile
 {
     unsigned int idx_command=0, idx_stripped=0;    
 

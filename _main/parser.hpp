@@ -34,11 +34,11 @@ public:
     CommandParser(){command_list = nullptr;};
     CommandParser(Command *command_list);
 
-    char *executeCommand(const char *command);
+    char *executeCommand(const char *command) volatile;
 
-    const char *strip(const char *command);
+    const char *strip(const char *command) volatile;
 
-    signed char getLuminaireId(const char *command);
+    signed char getLuminaireId(const char *command) volatile;
 
     Command *command_list;
 private:

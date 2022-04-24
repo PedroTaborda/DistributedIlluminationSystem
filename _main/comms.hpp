@@ -16,10 +16,17 @@
         } while ((ret == 4) && ((millis() - t0) < timeout_ms)); \
     }
 
-#define SDA_MASTER_PIN 16
-#define SCL_MASTER_PIN 17
-#define SDA_SLAVE_PIN 14
-#define SCL_SLAVE_PIN 15
+#ifdef ZE
+const int SDA_MASTER_PIN = 0;
+const int SCL_MASTER_PIN = 1;
+const int SDA_SLAVE_PIN = 2;
+const int SCL_SLAVE_PIN = 3;
+#else
+const int SDA_MASTER_PIN = 16;
+const int SCL_MASTER_PIN = 17;
+const int SDA_SLAVE_PIN = 14;
+const int SCL_SLAVE_PIN = 15;
+#endif
 
 
 
@@ -64,7 +71,7 @@ enum ProcessingResult
 };
 
 const int receivedDataBufferSize = 64; // to be put in a central place
-const unsigned long timeout_ms = 50;
+const unsigned long timeout_ms = 20;
 const signed char addr_offset = 8;
 inline constexpr unsigned long MESSAGE_SLACK_WAIT_MS = 500;
 
@@ -77,14 +84,14 @@ public:
     Comms(){};
     Comms(CommandParser parser) : parser(parser) {}
 
-    void init();
+    void init() volatile;
 
-    bool joinNetwork();
-    void calibrateNetwork();
+    bool joinNetwork() volatile;
+    void calibrateNetwork() volatile;
 
-    ProcessingResult processCommand(const char *command);
+    ProcessingResult processCommand(const char *command) volatile;
 
-    void eventLoop();
+    void eventLoop() volatile;
 
 private:
     char receivedData[receivedDataBufferSize];
@@ -94,11 +101,13 @@ private:
     bool error = false;
     char errorMsg[100];
 
-    void onReceive(int);
-    void onRequest();
+    void onReceive(int) volatile;
+    void onRequest() volatile;
 
-    void flushError();
-    void processReceivedData();
+    void flushError() volatile;
+    void processReceivedData() volatile;
 };
+
+void parseSerial(volatile Comms& comms);
 
 #endif // COMMS_HPP
