@@ -15,7 +15,13 @@
 extern char NOT_IMPLEMENTED_BUF[];
 extern char ACK_BUF[];
 extern char ERR_BUF[];
-#define notImplemented [](const char *args) { UNUSED(args); return NOT_IMPLEMENTED_BUF; }
+
+#ifdef DEBUG
+#define notImplemented noArgCom([]() {_Pragma("message(\"Command not implemented\")"); return NOT_IMPLEMENTED_BUF; })
+#else
+#define notImplemented noArgCom([]() {return NOT_IMPLEMENTED_BUF; })
+#endif
+
 #define ACK return ACK_BUF;
 #define ERR return ERR_BUF;
 
