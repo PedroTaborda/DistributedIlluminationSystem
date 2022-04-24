@@ -7,7 +7,7 @@
 #include "utilities.hpp"
 #include "math_utils.hpp"
 
-#define SAMPLE_TIME_MS 10
+#define SAMPLE_TIME_MS 1
 #define SAMPLE_TIME_US 1000 * SAMPLE_TIME_MS
 #define TRIAL_END_THRESHOLD 0.6
 #define MAX_TAU_TRIAL_DURATION 2000
@@ -187,6 +187,10 @@ luminaireParams calibrateSelf(bool doGammaCalibration, bool doTauCalibration)
         params.gammaFactor = gammaFactor;
     gammaFactor = gammaFactor? gammaFactor: params.gammaFactor;
     gammaFactor = gammaFactor? gammaFactor: 0.8;
+
+    if(doGammaCalibration)
+        calibrateGain();
+        
     if (doTauCalibration){
         int nTrials = 5;
         calibrateTau(nTrials, tauN, params.tauAscending, params.tauDescending);
