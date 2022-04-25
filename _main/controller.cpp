@@ -18,14 +18,27 @@ void Controller::setup(float proportionalGain, float integralGain) volatile {
     feedback = true;
     feedforward = true;
     controllerOn = true;
+    control_on_req = true;
     simulatorOn = true;
     reference[0] = 0;
     reference[1] = 0;
+    refL_mlux = 0;
+    new_ref = false;
     dutyCycle = 0;
     occupancy = 0;
+    occupancy_req = 0;
+
+    lastTimestamp = micros();
+    energy = 0;
+    visibilityAccumulator = 0;
+    flickerAccumulator = 0;
+    previousFlicker = 0;
+    previousLux = 0;
 
     latest_sample.reset();
-
+    luminanceBuffer.reset();
+    dutyBuffer.reset();
+    sampleNumber = 0;
     simulator.initialize(micros(), measureVoltage(10), dutyCycle);
 
     int64_t delayUs = (int64_t)(samplingTime * 1e6);
@@ -36,9 +49,11 @@ void Controller::setup(float proportionalGain, float integralGain) volatile {
 bool Controller::controllerLoop(repeating_timer *timerStruct) {
     /* must be static because repeating timer callbacks can only have one argument */
     volatile Controller *controller = (volatile Controller *)timerStruct->user_data;
-    float reference = controller->reference[controller->occupancy];
     unsigned long t;
     controller->handle_requests();
+
+    // just to avoid typing everytime
+    float reference = controller->reference[controller->occupancy];
 
     t = micros();
     controller->sampleDuration = (t - controller->lastTimestamp);
@@ -104,21 +119,6 @@ bool Controller::controllerLoop(repeating_timer *timerStruct) {
         set_u(controller->dutyCycle);
     }
 
-    energy += controller->dutyCycle * controller->samplingTime;
-    visibilityAccumulator += max(0, reference - controller->currentLux);
-    double currentFlicker = controller->currentLux - previousLux;
-
-    if (currentFlicker * previousFlicker < 0)
-        flickerAccumulator += (abs(currentFlicker) + abs(previousFlicker)) / (2 * controller->samplingTime);
-
-    previousLux = controller->currentLux;
-    previousFlicker = currentFlicker;
-
-    sampleNumber += 1;
-
-    dutyBuffer.insert(controller->dutyCycle);
-    luminanceBuffer.insert(controller->currentLux);
-
     controller->update_outputs();
     return true;
 }
@@ -126,6 +126,8 @@ bool Controller::controllerLoop(repeating_timer *timerStruct) {
 void Controller::handle_requests() volatile {
     /* Handle requests from messenger core */
     controllerOn = control_on_req;
+    proportionalGain = proportionalGain_req;
+    integralGain = integralGain_req;
     occupancy = occupancy_req;
     if (new_ref) {
         reference[occupancy] = refL_mlux / 1000.0;
@@ -137,7 +139,9 @@ void Controller::handle_requests() volatile {
 }
 
 void Controller::update_outputs() volatile {
-    volatile sample_t newsample;
+    sample_t newsample;
+    sampleNumber += 1;
+
     newsample.dur = sampleDuration;
     newsample.L = currentLux;
     newsample.IntegralError = integralError;
@@ -147,6 +151,25 @@ void Controller::update_outputs() volatile {
     newsample.num = sampleNumber;
 
     latest_sample.insert(newsample);
+
+    energy += dutyCycle * samplingTime;
+    energy_out = (float)energy;
+
+    visibilityAccumulator += max(0, reference[occupancy] - currentLux);
+    visibilityAccumulator_out = (float)visibilityAccumulator;
+
+    double currentFlicker = currentLux - previousLux;
+
+    if (currentFlicker * previousFlicker < 0) {
+        flickerAccumulator += (abs(currentFlicker) + abs(previousFlicker)) / (2 * samplingTime);
+        flickerAccumulator_out = (float)flickerAccumulator;
+    }
+
+    previousLux = currentLux;
+    previousFlicker = currentFlicker;
+
+    dutyBuffer.insert(dutyCycle);
+    luminanceBuffer.insert(currentLux);
 }
 
 void Controller::changeSimulatorReference(float reference) volatile {
@@ -162,16 +185,54 @@ void Controller::changeSimulatorReference(float reference) volatile {
 
 int Controller::getSampleNumber() volatile {
     if (!latest_sample.available())
-        return -1;
+        return 0;
     else
         return latest_sample.getBegin(1).num;
 }
 
-volatile sample_t& Controller::getSample() volatile { return latest_sample.getBegin(1); }
+sample_t Controller::getSample() volatile {
+    sample_t latest;
+    // The latest_sample is a buffer with two entries so that if controller is writing to one entry,
+    // the other is read uncorrupted. However, if the method is interrupted in between reading the
+    // current head and reading the sample for long enough, the controller might start the next
+    // iteration loop, after which it will write to the same entry this function is going to read.
+    // To prevent this, turn off interrupts so there is no big delay between reading current head
+    // and the sample.
+    noInterrupts();
+    latest = latest_sample.getBegin(1);
+    interrupts();
+    return latest;
+}
 
 float Controller::getReference() volatile { return reference[occupancy]; }
 
 int Controller::getOccupancy() volatile { return occupancy; }
+
+float Controller::getDutyCycle() volatile { return dutyCycle; }
+
+float Controller::getIlluminance() volatile { return currentLux; }
+
+float Controller::getEnergySpent() volatile { return energy_out; }
+
+float Controller::getVisibilityAccumulator() volatile { return visibilityAccumulator_out; }
+
+float Controller::getFlickerAccumulator() volatile { return flickerAccumulator_out; }
+
+void Controller::getDutyBuffer(float out[60 * 100]) volatile {
+    // index from current head in case controller increments the buffer during the read
+    int currentHead = dutyBuffer.getCurrentHead();
+    for (int i = 0; i < 60 * 100; i++) {
+        out[i] = dutyBuffer.indexFromCustomHead(i - (60 * 100 - 1), currentHead);
+    }
+}
+
+void Controller::getIlluminanceBuffer(float out[60 * 100]) volatile {
+    // index from current head in case controller increments the buffer during the read
+    int currentHead = luminanceBuffer.getCurrentHead();
+    for (int i = 0; i < 60 * 100; i++) {
+        out[i] = luminanceBuffer.indexFromCustomHead(i - (60 * 100 - 1), currentHead);
+    }
+}
 
 void Controller::setReference(float reference) volatile {
     /* Set illuminance reference (lux) and turn control on */
@@ -182,11 +243,11 @@ void Controller::setReference(float reference) volatile {
         ;  // wait for controller core to acknowledge new refL
 }
 
-/*void Controller::setDutyCycle(float duty) volatile {
+void Controller::setDutyCycle(float duty) volatile {
     turnControllerOff();
-    dutyCycle[occupancy] = duty;
+    dutyCycle = duty;
     set_u(duty);
-}*/
+}
 
 void Controller::setOccupancy(int occupancy_in) volatile {
     occupancy_req = occupancy_in;
@@ -202,17 +263,17 @@ void Controller::turnControllerOff() volatile {
 
 void Controller::turnControllerOn() volatile { control_on_req = true; }
 
-void Controller::setAntiWindup(int val) volatile { antiWindup = val; }
+void Controller::toggleAntiWindup() volatile { antiWindup = !antiWindup; }
 
-void Controller::setFeedback(int val) volatile { feedback = val; }
+void Controller::setFeedback(bool feedback_in) volatile { feedback = feedback_in; }
 
-void Controller::setFeedforward(int val) volatile { feedforward = val; }
+void Controller::setFeedforward(bool feedforward_in) volatile { feedforward = feedforward_in; }
 
 void Controller::setSimulator(int simulator) volatile { simulatorOn = simulator == 0 ? false : true; }
 
-void Controller::setProportionalGain(float proportionalGain_in) volatile { proportionalGain = proportionalGain_in; }
+void Controller::setProportionalGain(float proportionalGain_in) volatile { proportionalGain_req = proportionalGain_in; }
 
-void Controller::setIntegralGain(float integralGain_in) volatile { integralGain = integralGain_in; }
+void Controller::setIntegralGain(float integralGain_in) volatile { integralGain_req = integralGain_in; }
 
 bool Controller::getAntiWindup() volatile { return antiWindup; }
 

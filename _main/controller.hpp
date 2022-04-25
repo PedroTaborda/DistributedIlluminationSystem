@@ -1,16 +1,16 @@
-#ifndef CONTROLLER2_HPP
-#define CONTROLLER2_HPP
+#ifndef CONTROLLER_HPP
+#define CONTROLLER_HPP
 
 #include <Arduino.h>
 
-#include <utility>
+//  #include <utility> idk why this was here
 
 #include "buffer.hpp"
 #include "simulator.hpp"
 
 struct sample_t {
     // Overload assignment operator for volatile type
-    void operator=(volatile sample_t& a) volatile {
+    void operator=(volatile sample_t a) volatile {
         dur = a.dur;
         L = a.L;
         u = a.u;
@@ -32,7 +32,7 @@ struct sample_t {
 };
 
 class Controller {
-public:
+   public:
     // Default Constructor
     Controller();
 
@@ -46,17 +46,17 @@ public:
     float getReference() volatile;
     int getOccupancy() volatile;
     void setReference(float reference) volatile;
-    //void setDutyCycle(float duty) volatile;
+    void setDutyCycle(float duty) volatile;
     void setOccupancy(int occupancy) volatile;
-    int getSampleNumber() volatile;  // returns number of latest sample, returns negative if none is saved
-    volatile sample_t& getSample() volatile;
+    int getSampleNumber() volatile;  // returns number of latest sample, returns 0 if none is saved
+    sample_t getSample() volatile;
 
     // Controller settings
     void turnControllerOff() volatile;
     void turnControllerOn() volatile;
-    void setAntiWindup(int val) volatile;
-    void setFeedback(int val) volatile;
-    void setFeedforward(int val) volatile;
+    void toggleAntiWindup() volatile;
+    void setFeedback(bool feedback_in) volatile;
+    void setFeedforward(bool feedback_in) volatile;
     void setSimulator(int simulator) volatile;
     void setProportionalGain(float proportionalGain) volatile;
     void setIntegralGain(float integralGain) volatile;
@@ -66,8 +66,16 @@ public:
     bool getFeedforward() volatile;
     float getProportionalGain() volatile;
     float getIntegralGain() volatile;
+    float getDutyCycle() volatile;
+    float getIlluminance() volatile;
+    float getEnergySpent() volatile;
+    float getVisibilityAccumulator() volatile;
+    float getFlickerAccumulator() volatile;
 
-private:
+    void getDutyBuffer(float out[60 * 100]) volatile;
+    void getIlluminanceBuffer(float out[60 * 100]) volatile;
+
+   private:
     void handle_requests() volatile;
     void update_outputs() volatile;
     void changeSimulatorReference(float reference) volatile;
@@ -87,24 +95,41 @@ private:
 
     // sample buffer of size 2 such that controller can write to one position while the class user
     // reads the other position
-    Buffer<volatile sample_t, 2> latest_sample;
+    Buffer<sample_t, 2> latest_sample;
 
     // Controller auxiliary variables
     float trackingError, simulatorValue;
     unsigned long lastTimestamp;
     unsigned long sampleDuration;
+    // More than 60 seconds so there is a margin between head and tail of buffer
+    Buffer<float, 60 * 100 + 10> luminanceBuffer;
+    Buffer<float, 60 * 100 + 10> dutyBuffer;
+    double energy;
+    double visibilityAccumulator;
+    double flickerAccumulator;
+    double previousFlicker;
+    double previousLux;
+    unsigned long sampleNumber;
+
     // Controller parameters
     float samplingTime;
-    float proportionalGain, integralGain;    // I
+    float proportionalGain, integralGain;
     bool antiWindup, feedback, feedforward;  // I
 
     bool ControlLoopOn;  // true when timer is executing control loop
 
-    // interface variables, all marked with I
+    // interface input variables, all marked with I
     int occupancy_req;
+    float proportionalGain_req, integralGain_req;
     int refL_mlux;        // in millis of lux
     bool control_on_req;  // false -> request control off; true ->request control on
     // ---------------------------
+
+    // interface output variables
+    float energy_out;
+    float visibilityAccumulator_out;
+    float flickerAccumulator_out;
+    // ----------------------
 
     // these are written both by controller core and vy interface functions, synchonously
     bool new_ref;
