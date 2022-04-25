@@ -10,6 +10,7 @@
 #include "utilities.hpp"
 #include "comms.hpp"
 #include "parser.hpp"
+#include "network.hpp"
 
 // Initialization of global variables
 
@@ -43,7 +44,7 @@ CommandParser parser(
     {'a', "<int>", "sets the anti-windup state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setAntiWindup(val); ACK}), NULL},
     {'b', "<int>", "sets the feedback state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setFeedback(val); ACK}), NULL},
     {'B', "", "get last minute buffer", NULL, (Command[]){
-        {'l', "", "measured lumminance", somefunc, NULL},
+        {'l', "", "measured lumminance", notImplemented, NULL},
         {'d', "", "duty cycle", notImplemented, NULL},
         {'\0', "", "", NULL, NULL}}},
     {'C', "", "calibration utilities", NULL, (Command[]){
@@ -75,7 +76,7 @@ CommandParser parser(
         {'x', "", "external luminance", printfCom("x %d %f", myID, controller.getSample().L - gain * controller.getSample().u), NULL},
         {'\0', "", "", NULL, NULL}}},
     {'h', "", "help", noArgCom(help), NULL},
-    {'k', "<int>", "callibrator gain <id> to <id>", intArgCom([](int id) {printI2C("k %d %f", myID, calibrator.getGainId(id)) }), NULL},
+    {'k', "<int>", "callibrator gain <id> to <id>", intArgCom([](int id) {printI2C("k %d %f", myID, calibrator.getGainId(network.getIndexId(id))) }), NULL},
     {'o', "<int>", "sets the occupancy state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setOccupancy(val); ACK}), NULL},
     {'O', "<float>", "sets the occupied lower bound lumminance", notImplemented, NULL},
     {'p', "", "ack", noArgCom([](){ACK}), NULL},
@@ -124,7 +125,8 @@ void loop() {
 
     comms.eventLoop();
 
-    
+    #pragma message("disabled because it wouldnt compile")
+    #ifdef UNDEFINED_MACRO_IS_UNDEFINED_PLEASE
     static unsigned long lastTimeBufferComm = micros();
     unsigned long deltaTimeBufferComm = micros() - lastTimeBufferComm;
     if(outBuffer_i < outBufferSize && deltaTimeBufferComm > 20000){
@@ -132,6 +134,7 @@ void loop() {
         outBuffer_i++;
         lastTimeBufferComm = micros();
     }
+    #endif
 }
 
 void setup1() {

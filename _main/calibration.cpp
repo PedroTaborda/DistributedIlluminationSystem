@@ -4,8 +4,9 @@
 #include <EEPROM.h>
 
 #include "globals.hpp"
-#include "utilities.hpp"
 #include "math_utils.hpp"
+#include "network.hpp"
+#include "utilities.hpp"
 
 #define SAMPLE_TIME_MS 1
 #define SAMPLE_TIME_US 1000 * SAMPLE_TIME_MS
@@ -359,33 +360,14 @@ void Calibrator::resetWait() {
                                   -> long long int {((Calibrator*) instance)->endWait(); return 0;}, this, true);
 }
 
-bool Calibrator::waitingIds() {
-    return isWaitingId;
-}
-
-void Calibrator::resetWaitId() {
-    cancel_alarm(waitAlarmId);
-    waitAlarmId = add_alarm_in_ms(ID_WAIT_TIME_MS, [](long int, void* instance) 
-                                  -> long long int {((Calibrator*) instance)->endWaitId(); return 0;}, this, true);
-}
-
 float Calibrator::getGainId(signed char id) {
-    if(id > highestId)
+    if(id >= network.getNumberNodesNetwork())
         return -1.f;
     return staticGains[id];
 }
 
 float Calibrator::getExternalLuminance() {
     return externalLuminance;
-}
-
-signed char Calibrator::getHighestId() {
-    return highestId;
-}
-
-void Calibrator::setHighestId(signed char id) {
-    if(id > highestId)
-        highestId = id;
 }
 
 void Calibrator::calibrateGainId(signed char id) {
@@ -465,10 +447,6 @@ void Calibrator::becomeMaestro() {
 
 void Calibrator::endWait() {
     isWaiting = false;
-}
-
-void Calibrator::endWaitId() {
-    isWaitingId = false;
 }
 
 Calibrator calibrator;

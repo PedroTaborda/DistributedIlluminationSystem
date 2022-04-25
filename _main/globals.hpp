@@ -19,11 +19,12 @@ struct luminaireParams{
 };
 
 // Constant values for configuring the micro controller
-const int BAUD_RATE = 115200;
-const int DAC_RANGE = 4096;
-const int PWM_FREQUENCY = 60000;
-const int MAX_VOLTAGE_SAMPLES = 100;
-const float FLOAT_RELATIVE_TOLERANCE = 0.001f;
+inline constexpr int BAUD_RATE = 115200;
+inline constexpr int DAC_RANGE = 4096;
+inline constexpr int PWM_FREQUENCY = 60000;
+inline constexpr int MAX_VOLTAGE_SAMPLES = 100;
+inline constexpr float FLOAT_RELATIVE_TOLERANCE = 0.001f;
+inline constexpr unsigned int MAX_DEVICES = 16;
 
 #ifdef ZE
 const int LED_PIN = 15;

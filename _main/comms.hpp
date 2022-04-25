@@ -55,12 +55,14 @@ enum MSG_TYPE : unsigned char
     MSG_TYPE_REPLY,
     MSG_TYPE_REPLY_RAW,
     MSG_TYPE_STREAM,
-    MSG_TYPE_WAKEUP,
+    MSG_TYPE_ANNOUNCE_ID,
     MSG_TYPE_BEGIN_CALIBRATION,
-    MSG_TYPE_FIND_HIGHEST_ID,
+    MSG_TYPE_ROLL_CALL,
     MSG_TYPE_CALIBRATE_ID,
     MSG_TYPE_END_CALIBRATION,
-    MSG_TYPE_BUFFER
+    MSG_TYPE_BUFFER,
+    MSG_TYPE_VERIFY_LIST,
+    MSG_TYPE_VERIFY_LIST_NACK,
 };
 
 enum ProcessingResult
@@ -71,11 +73,13 @@ enum ProcessingResult
     PROCESSING_LOCAL_EXECUTION_FAILURE,
 };
 
-const int receivedDataBufferSize = 64; // to be put in a central place
-const unsigned long TIMEOUT_MS = 20;
-const unsigned int RETRY_MULTIPLIER = 10;
-const unsigned long RETRY_TIMEOUT_MS = RETRY_MULTIPLIER * TIMEOUT_MS;
-const signed char addr_offset = 8;
+inline constexpr int receivedDataBufferSize = 64; // to be put in a central place
+inline constexpr unsigned long TIMEOUT_MS = 20;
+inline constexpr unsigned int RETRY_MULTIPLIER = 10;
+inline constexpr unsigned long RETRY_TIMEOUT_MS = RETRY_MULTIPLIER * TIMEOUT_MS;
+inline constexpr unsigned long VERIFY_WAIT_MS = 100;
+inline constexpr unsigned long ROLL_CALL_WAIT_MS = 100;
+inline constexpr signed char addr_offset = 8;
 inline constexpr unsigned long MESSAGE_SLACK_WAIT_MS = 500;
 
 class Comms
@@ -108,7 +112,16 @@ private:
     void onRequest() volatile;
 
     void flushError() volatile;
-    void processReceivedData() volatile;
+    void processReceivedData() volatile; 
+
+    bool successfulRegister = true;
+    bool waitVerify = true;
+    bool waitRollCall = true;
+    alarm_id_t verifyAlarm = -1;
+    alarm_id_t rollCallAlarm = -1;
+
+    void startVerifyAckAlarm() volatile;
+    void startRollCallAlarm() volatile;
 };
 
 void parseSerial(volatile Comms& comms);

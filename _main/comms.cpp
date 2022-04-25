@@ -1,7 +1,8 @@
 #include "calibration.hpp"
 #include "comms.hpp"
-#include "parser.hpp"
 #include "globals.hpp"
+#include "network.hpp"
+#include "parser.hpp"
 #include <Wire.h>
 
 volatile Comms* _comms;
@@ -40,13 +41,48 @@ bool Comms::joinNetwork() volatile
             Wire1.begin(my_potential_addr);
             
             SEND_MSG(0, RETRY_TIMEOUT_MS,
-                Wire.write(MSG_TYPE_WAKEUP);,
+                Wire.write(MSG_TYPE_ANNOUNCE_ID);
+                Wire.write(myID);,
             ret)
             DEBUG_PRINT("Broadcasting wakeup as id %d\n", my_id)
 
+            network.addNodeToNetwork(myID);
+
+            do {
+                successfulRegister = true;
+                SEND_MSG(0, RETRY_TIMEOUT_MS,
+                    Wire.write(MSG_TYPE_VERIFY_LIST);
+                    Wire.write(network.getNumberNodesNetwork());
+                    Wire.write(network.getNetwork(), network.getNumberNodesNetwork());,
+                ret)
+
+                startVerifyAckAlarm();
+
+                while(waitVerify) eventLoop();
+            
+                if(!successfulRegister) {
+                    SEND_MSG(0, RETRY_TIMEOUT_MS,
+                        Wire.write(MSG_TYPE_ROLL_CALL);,
+                    ret)
+
+                    startRollCallAlarm();
+
+                    while(waitRollCall) eventLoop();
+                }
+            } while(successfulRegister == false);
+
+            for(uint8_t i = 0; i < network.getNumberNodesNetwork(); i++) {
+                DEBUG_PRINT("%uth member of the network is %u\n", i, network.getNetwork()[i])
+            }
+
             if(my_id == 0)
                 calibrator.resetWait();
+
             return true;
+        }
+        else
+        {
+            network.addNodeToNetwork(my_potential_addr - addr_offset);
         }
     }
     return false;
@@ -60,35 +96,28 @@ void Comms::calibrateNetwork() volatile{
     ret)
     // Become the maestro
     calibrator.becomeMaestro();
-    // Everybody should know that now only calibration messages
-    // are being traded. Every luminaire in the network now
-    // replies with their id.
-    // Block while waiting for the ids to stop arriving,
-    // hijacking the eventLoop.
-    calibrator.resetWaitId();
-    while(calibrator.waitingIds()) eventLoop();
     DEBUG_PRINT("Calibration starting.\n");
     // After the highest id has been found, order everyone to calibrate,
     // in order.
-    for(signed char i = 0; i <= calibrator.getHighestId(); i++) {
+    for(signed char i = 0; i < network.getNumberNodesNetwork(); i++) {
         // Order luminaire i to run its calibration cycle. Also
         // lets the other luminaires know that i is about to run
         // its calibration cycle in order to calibrate coupled gains.
-        DEBUG_PRINT("Calibrating luminaire %d\n", i);
+        DEBUG_PRINT("Calibrating luminaire %d\n", network.getNetwork()[i]);
         SEND_MSG(0, RETRY_TIMEOUT_MS,
             Wire.write(MSG_TYPE_CALIBRATE_ID);
-            Wire.write(i);,
+            Wire.write(network.getNetwork()[i]);,
         ret)
         // When the message gets sent, its either our time to calibrate
         // or we should look.
-        if(i == my_id)
+        if(network.getNetwork()[i] == my_id)
             calibrator.selfCalibrate(my_id);
         else
             calibrator.calibrateGainId(i);
 
         // Wait for the node that just ran its calibration cycle to turn off
         // (if it wasn't me) and then give some slack for messaging delays.
-        if(i != my_id)
+        if(network.getNetwork()[i] != my_id)
             delay(STEADY_STATE_WAIT_MS);
         delay(MESSAGE_SLACK_WAIT_MS);
     }
@@ -99,7 +128,7 @@ void Comms::calibrateNetwork() volatile{
     ret)
 
     calibrator.endCalibration();
-    Serial.printf("Calibrated %d luminaires.\n", calibrator.getHighestId() + 1);
+    Serial.printf("Calibrated %d luminaires.\n", network.getNumberNodesNetwork());
     Serial.printf("Calibration complete.\n");
 }
 
@@ -219,15 +248,16 @@ void Comms::processReceivedData() volatile
         
     // In case someone has just woken up and I'm id=0, I'll see if we're waiting
     // to start calibration. If yes, reset the counter back to the start.
-    case MSG_TYPE_WAKEUP:
+    case MSG_TYPE_ANNOUNCE_ID:
+        network.addNodeToNetwork(receivedDataBuffer[0]);
         if(my_id == 0 && calibrator.waiting()) {
             calibrator.resetWait();
         }
-        DEBUG_PRINT("Received MSG_TYPE_WAKEUP\n")
+        DEBUG_PRINT("Received MSG_TYPE_ANNOUNCE_ID\n")
         break;
 
     case MSG_TYPE_BEGIN_CALIBRATION:
-        Serial.printf("Received begin calibration signal.\n");
+        /*Serial.printf("Received begin calibration signal.\n");
         // The maestro ignores its own calls to calibrate
         if(!calibrator.isMaestro()) {
             // Broadcast our id so the highest id can be determined
@@ -238,15 +268,17 @@ void Comms::processReceivedData() volatile
         } else {
             calibrator.setHighestId(my_id);
             calibrator.resetWaitId();
-        }
+        }*/
         DEBUG_PRINT("Received MSG_TYPE_BEGIN_CALIBRATION\n")
         break;
 
-    case MSG_TYPE_FIND_HIGHEST_ID:
-        Serial.printf("Received highest id: %d\n", receivedDataBuffer[0]);
-        calibrator.setHighestId((signed char) receivedDataBuffer[0]);
-        calibrator.resetWaitId();
-        DEBUG_PRINT("Received MSG_TYPE_FIND_HIGHEST_ID\n")
+    case MSG_TYPE_ROLL_CALL:
+        network.resetNetwork();
+        SEND_MSG(0, RETRY_TIMEOUT_MS,
+            Wire.write(MSG_TYPE_ANNOUNCE_ID);
+            Wire.write(myID);,
+        ret)
+        DEBUG_PRINT("Received MSG_TYPE_ROLL_CALL\n")
         break;
 
     case MSG_TYPE_CALIBRATE_ID:
@@ -267,7 +299,22 @@ void Comms::processReceivedData() volatile
         }
         DEBUG_PRINT("Received MSG_TYPE_END_CALIBRATION\n")
         break;
-
+    case MSG_TYPE_VERIFY_LIST:
+        if(!network.compareNetwork((uint8_t *)&receivedDataBuffer[1], (uint8_t)receivedDataBuffer[0])) {
+            SEND_MSG(0, RETRY_TIMEOUT_MS,
+            Wire.write(MSG_TYPE_VERIFY_LIST_NACK);,
+            ret)
+        }
+        DEBUG_PRINT("Received MSG_TYPE_VERIFY_LIST\n")
+        break;
+    case MSG_TYPE_VERIFY_LIST_NACK:
+        if(verifyAlarm != -1) {
+            cancel_alarm(verifyAlarm);
+            waitVerify = false;
+        }
+        successfulRegister = false;
+        DEBUG_PRINT("Received MSG_TYPE_VERIFY_LIST_NACK\n")
+        break;
     default:
         DEBUG_PRINT("Message wasn't well read. Code %d\n", receivedMsg)
         break;
@@ -278,6 +325,22 @@ void Comms::eventLoop() volatile
 {
     flushError();
     processReceivedData();
+}
+
+void Comms::startVerifyAckAlarm() volatile {
+    if(verifyAlarm != -1)
+        cancel_alarm(verifyAlarm);
+
+    verifyAlarm = add_alarm_in_ms(VERIFY_WAIT_MS, [](long int, void* instance) 
+                                  -> long long int {((volatile Comms *)instance)->waitVerify = false; return 0;},(void*)this, false);
+}
+
+void Comms::startRollCallAlarm() volatile {
+    if(rollCallAlarm != -1)
+        cancel_alarm(verifyAlarm);
+
+    rollCallAlarm = add_alarm_in_ms(ROLL_CALL_WAIT_MS, [](long int, void* instance) 
+                                  -> long long int {((volatile Comms *)instance)->waitRollCall = false; return 0;}, (void*)this, false);
 }
 
 void parseSerial(volatile Comms &comms) {
