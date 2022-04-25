@@ -44,16 +44,17 @@ bool Comms::joinNetwork() volatile
                 Wire.write(MSG_TYPE_ANNOUNCE_ID);
                 Wire.write(myID);,
             ret)
-            DEBUG_PRINT("Broadcasting wakeup as id %d\n", my_id)
+            DEBUG_PRINT("Broadcasting wakeup as id %hhu\n", (uint8_t)my_id)
 
-            network.addNodeToNetwork(myID);
+            network.addNodeToNetwork((uint8_t)myID);
 
             do {
                 successfulRegister = true;
                 SEND_MSG(0, RETRY_TIMEOUT_MS,
                     Wire.write(MSG_TYPE_VERIFY_LIST);
                     Wire.write(network.getNumberNodesNetwork());
-                    Wire.write(network.getNetwork(), network.getNumberNodesNetwork());,
+                    for(uint8_t i = 0; i < network.getNumberNodesNetwork(); i++)
+                        Wire.write(network.getNetwork()[i]);,
                 ret)
 
                 startVerifyAckAlarm();
@@ -72,7 +73,7 @@ bool Comms::joinNetwork() volatile
             } while(successfulRegister == false);
 
             for(uint8_t i = 0; i < network.getNumberNodesNetwork(); i++) {
-                DEBUG_PRINT("%uth member of the network is %u\n", i, network.getNetwork()[i])
+                DEBUG_PRINT("%hhuth member of the network is %hhu\n", i, network.getNetwork()[i])
             }
 
             if(my_id == 0)
@@ -189,9 +190,9 @@ void Comms::onReceive(int signed bytesReceived) volatile
     
     for (int buf_idx = 0; buf_idx < bytesReceived - 1; buf_idx++)
     {
-        receivedData[buf_idx] = Wire1.read();
+        receivedData[buf_idx] = (uint8_t)Wire1.read();
     }
-    receivedData[bytesReceived] = '\0';
+    receivedData[bytesReceived - 1] = '\0';
     receivedDataSize = bytesReceived - 1;
 }
 
@@ -211,8 +212,8 @@ void Comms::processReceivedData() volatile
     noInterrupts();
     MSG_TYPE receivedMsg = receivedMsgType;
     receivedMsgType = MSG_TYPE_NONE;
-    char receivedDataBuffer[receivedDataBufferSize];
-    strncpy(receivedDataBuffer, (const char *)receivedData, receivedDataBufferSize);
+    uint8_t receivedDataBuffer[receivedDataBufferSize];
+    memcpy(receivedDataBuffer, (const uint8_t *)receivedData, receivedDataBufferSize);
     interrupts();
 
     if (receivedMsg == MSG_TYPE_NONE)
@@ -300,7 +301,7 @@ void Comms::processReceivedData() volatile
         DEBUG_PRINT("Received MSG_TYPE_END_CALIBRATION\n")
         break;
     case MSG_TYPE_VERIFY_LIST:
-        if(!network.compareNetwork((uint8_t *)&receivedDataBuffer[1], (uint8_t)receivedDataBuffer[0])) {
+        if(!network.compareNetwork((uint8_t *)receivedDataBuffer + 1, (uint8_t)receivedDataBuffer[0])) {
             SEND_MSG(0, RETRY_TIMEOUT_MS,
             Wire.write(MSG_TYPE_VERIFY_LIST_NACK);,
             ret)

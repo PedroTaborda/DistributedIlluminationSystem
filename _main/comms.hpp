@@ -101,8 +101,8 @@ public:
     void eventLoop() volatile;
 
 private:
-    char receivedData[receivedDataBufferSize];
-    char receivedDataSize = 0;
+    uint8_t receivedData[receivedDataBufferSize];
+    uint8_t receivedDataSize = 0;
     MSG_TYPE receivedMsgType = MSG_TYPE_NONE;
 
     bool error = false;
