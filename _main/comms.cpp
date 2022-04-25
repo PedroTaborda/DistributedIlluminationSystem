@@ -243,7 +243,13 @@ void Comms::processReceivedData() volatile
         Serial.printf("%s", receivedDataBuffer);
         break;
     case MSG_TYPE_BUFFER:
-        Serial.printf(", %f", *((float *)receivedDataBuffer));
+        Serial.printf(" %f,", *((float *)receivedDataBuffer));
+        receivingBuffer = true;
+        break;
+
+    case MSG_TYPE_BUFFER_END:
+        Serial.printf(" %f\n", *((float *)receivedDataBuffer));
+        receivingBuffer = false;
         break;
 
     // In case someone has just woken up and I'm id=0, I'll see if we're waiting

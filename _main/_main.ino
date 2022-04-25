@@ -29,8 +29,8 @@ bool streamTrackingError = false;
 bool streamSimulator = false;
 bool streamReference = false;
 
-#define outBufferSize (60*100)
 float outBuffer[outBufferSize];
+
 int outBuffer_i = outBufferSize;  // >= outBufferSize means no transfer to be done
 
 alarm_pool_t* core1AlarmPool;
@@ -44,8 +44,8 @@ CommandParser parser(
     {'a', "<int>", "sets the anti-windup state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setAntiWindup(val); ACK}), NULL},
     {'b', "<int>", "sets the feedback state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setFeedback(val); ACK}), NULL},
     {'B', "", "get last minute buffer", NULL, (Command[]){
-        {'l', "", "measured lumminance", notImplemented, NULL},
-        {'d', "", "duty cycle", notImplemented, NULL},
+        {'l', "", "measured lumminance", getIlluminanceCommand, NULL},
+        {'d', "", "duty cycle", getDutyBufferCommand, NULL},
         {'\0', "", "", NULL, NULL}}},
     {'C', "", "calibration utilities", NULL, (Command[]){
         {'a', "", "calibrate gamma and tau, save these parameters to EEPROM and activate them", noArgCom(calibrateAutoCommand), NULL},
@@ -120,24 +120,23 @@ void setup() {
 }
 
 void loop() {
-    if(Serial.available() > 0)
-        parseSerial(comms);
+    if (!receivingBuffer && Serial.available() > 0) parseSerial(comms);
 
     comms.eventLoop();
 
     static unsigned long lastTimeBufferComm = micros();
     unsigned long deltaTimeBufferComm = micros() - lastTimeBufferComm;
     int ret;
-    if(outBuffer_i < outBufferSize && deltaTimeBufferComm > 20000){
-        if (outBuffer_i == 0) {
-            char str[16];
-            sprintf(str, " %.3f", outBuffer[outBuffer_i]);
-            SEND_MSG(0, 200, Wire.write(MSG_TYPE_REPLY_RAW);
+    if (outBuffer_i < outBufferSize && deltaTimeBufferComm > 20000) {
+        if (outBuffer_i == outBufferSize - 1) {
+            // last sample
+            SEND_MSG(0, 200, Wire.write(MSG_TYPE_BUFFER_END);
                      Wire.write((byte*)&outBuffer[outBuffer_i], sizeof(outBuffer[0]));, ret);
         } else {
             SEND_MSG(0, 200, Wire.write(MSG_TYPE_BUFFER);
                      Wire.write((byte*)&outBuffer[outBuffer_i], sizeof(outBuffer[0]));, ret);
         }
+
         outBuffer_i++;
         lastTimeBufferComm = micros();
     }

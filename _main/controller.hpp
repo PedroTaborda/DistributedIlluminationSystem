@@ -42,6 +42,7 @@ struct sample_t {
     int num;
 };
 
+#define outBufferSize (60 * 100)
 class Controller {
    public:
     // Default Constructor
@@ -83,8 +84,8 @@ class Controller {
     float getVisibilityAccumulator() volatile;
     float getFlickerAccumulator() volatile;
 
-    void getDutyBuffer(float out[60 * 100]) volatile;
-    void getIlluminanceBuffer(float out[60 * 100]) volatile;
+    void getDutyBuffer(float out[outBufferSize]) volatile;
+    void getIlluminanceBuffer(float out[outBufferSize]) volatile;
 
    private:
     void handle_requests() volatile;
@@ -112,9 +113,9 @@ class Controller {
     float trackingError, simulatorValue;
     unsigned long lastTimestamp;
     unsigned long sampleDuration;
-    // More than 60 seconds so there is a margin between head and tail of buffer
-    Buffer<float, 60 * 100 + 10> luminanceBuffer;
-    Buffer<float, 60 * 100 + 10> dutyBuffer;
+    // More than outBufferSize so there is a margin between head and tail of buffer
+    Buffer<float, outBufferSize + 10> luminanceBuffer;
+    Buffer<float, outBufferSize + 10> dutyBuffer;
     double energy;
     double visibilityAccumulator;
     double flickerAccumulator;
@@ -149,5 +150,11 @@ class Controller {
 
 // Controller Instance
 extern volatile Controller controller;
+
+// Communication functions
+
+char *getDutyBufferCommand(const char *args);
+
+char *getIlluminanceCommand(const char *args);
 
 #endif  // CONTROLLER_HPP
