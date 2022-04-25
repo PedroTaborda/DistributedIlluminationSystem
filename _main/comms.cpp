@@ -322,6 +322,11 @@ void Comms::processReceivedData() volatile
         successfulRegister = false;
         DEBUG_PRINT("Received MSG_TYPE_VERIFY_LIST_NACK\n")
         break;
+    case MSG_TYPE_CONSENSUS_START:
+    case MSG_TYPE_CONSENSUS_D:
+    case MSG_TYPE_CONSENSUS_CONVERGENCE:
+        #pragma messsage("implement me")
+        break;
     default:
         DEBUG_PRINT("Message wasn't well read. Code %d\n", receivedMsg)
         break;
