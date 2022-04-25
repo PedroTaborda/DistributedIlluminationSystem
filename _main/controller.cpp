@@ -218,19 +218,19 @@ float Controller::getVisibilityAccumulator() volatile { return visibilityAccumul
 
 float Controller::getFlickerAccumulator() volatile { return flickerAccumulator_out; }
 
-void Controller::getDutyBuffer(float out[60 * 100]) volatile {
+void Controller::getDutyBuffer(float out[outBufferSize]) volatile {
     // index from current head in case controller increments the buffer during the read
     int currentHead = dutyBuffer.getCurrentHead();
-    for (int i = 0; i < 60 * 100; i++) {
-        out[i] = dutyBuffer.indexFromCustomHead(i - (60 * 100 - 1), currentHead);
+    for (int i = 0; i < outBufferSize; i++) {
+        out[i] = dutyBuffer.indexFromCustomHead(i - (outBufferSize - 1), currentHead);
     }
 }
 
-void Controller::getIlluminanceBuffer(float out[60 * 100]) volatile {
+void Controller::getIlluminanceBuffer(float out[outBufferSize]) volatile {
     // index from current head in case controller increments the buffer during the read
     int currentHead = luminanceBuffer.getCurrentHead();
-    for (int i = 0; i < 60 * 100; i++) {
-        out[i] = luminanceBuffer.indexFromCustomHead(i - (60 * 100 - 1), currentHead);
+    for (int i = 0; i < outBufferSize; i++) {
+        out[i] = luminanceBuffer.indexFromCustomHead(i - (outBufferSize - 1), currentHead);
     }
 }
 
@@ -285,3 +285,23 @@ float Controller::getProportionalGain() volatile { return proportionalGain; }
 
 float Controller::getIntegralGain() volatile { return integralGain; }
 
+// Communications code
+extern int myID;
+extern float outBuffer[outBufferSize];
+extern int outBuffer_i;
+
+char *getDutyBufferCommand(const char *args) {
+    static char ret_str[8] = {0};
+    controller.getDutyBuffer(outBuffer);
+    outBuffer_i = 0;
+    sprintf(ret_str, "b d %d", myID);
+    return ret_str;
+}
+
+char *getIlluminanceCommand(const char *args) {
+    static char ret_str[8] = {0};
+    controller.getIlluminanceBuffer(outBuffer);
+    outBuffer_i = 0;
+    sprintf(ret_str, "b l %d", myID);
+    return ret_str;
+}

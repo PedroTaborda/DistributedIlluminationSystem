@@ -15,3 +15,7 @@ double mean(int n, double x[]);
 double interpolate(int n, double vecx[], double vecy[], double x);
 
 void range(int n, double *range, double start, double step);
+
+double dot(int n, double *x, double *y);
+
+unsigned int argmin(int n, double *x);

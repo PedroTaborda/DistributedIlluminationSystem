@@ -47,9 +47,8 @@ const int SCL_SLAVE_PIN = 15;
  *   present.
  */
 
-enum MSG_TYPE : unsigned char
-{
-    MSG_TYPE_ERROR=0,
+enum MSG_TYPE : unsigned char {
+    MSG_TYPE_ERROR = 0,
     MSG_TYPE_NONE,
     MSG_TYPE_COMMAND,
     MSG_TYPE_REPLY,
@@ -61,6 +60,7 @@ enum MSG_TYPE : unsigned char
     MSG_TYPE_CALIBRATE_ID,
     MSG_TYPE_END_CALIBRATION,
     MSG_TYPE_BUFFER,
+    MSG_TYPE_BUFFER_END,
     MSG_TYPE_VERIFY_LIST,
     MSG_TYPE_VERIFY_LIST_NACK,
 };
@@ -81,6 +81,8 @@ inline constexpr unsigned long VERIFY_WAIT_MS = 100;
 inline constexpr unsigned long ROLL_CALL_WAIT_MS = 100;
 inline constexpr signed char addr_offset = 8;
 inline constexpr unsigned long MESSAGE_SLACK_WAIT_MS = 500;
+
+bool receivingBuffer = false;
 
 class Comms
 {

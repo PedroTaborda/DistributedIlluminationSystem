@@ -257,7 +257,7 @@ char *calibrateCommand(const char *args)
 {
     int doGammaCalibration = 0;
     int doTauCalibration = 0;
-    static char ret_str[] = "Calibration successful";
+    static char ret_str[] = "Calibration successful\n";
     int ret = sscanf(args, "%d %d", &doGammaCalibration, &doTauCalibration);
     if (ret != 2)
     {
@@ -274,8 +274,8 @@ char *saveCalibrationCommand(const char *args)
 {
     int saveGammaCalibration = 0;
     int saveTauCalibration = 0;
-    static char retStr[] = "Successfully saved calibration";
-    static char retStrNone[] = "No parameters to save";
+    static char retStr[] = "Successfully saved calibration\n";
+    static char retStrNone[] = "No parameters to save\n";
     int ret = sscanf(args, "%d %d", &saveGammaCalibration, &saveTauCalibration);
     if (ret != 2)
     {
@@ -308,7 +308,7 @@ char *saveCalibrationCommand(const char *args)
 char *printCalibratedCommand()
 {
 #ifdef DEBUG
-    static char retStr[] = "Calibration shown successfully";
+    static char retStr[] = "Calibration shown successfully\n";
     DEBUG_PRINT("Current parameters:\n")
     showParams(activeParams());
     DEBUG_PRINT("Saved parameters:\n")
@@ -320,7 +320,7 @@ char *printCalibratedCommand()
     DEBUG_PRINT("Latest calibration:\n")
     showParams(latestCalibration);
 #else
-    static char retStr[] = "Command available only in debug mode";
+    static char retStr[] = "Command available only in debug mode\n";
 #endif
     return retStr;
 }
@@ -338,7 +338,7 @@ void loadParamsStartup(){
 }
 
 char *calibrateAutoCommand(){
-    static char retStr[] = "Calibration successful";
+    static char retStr[] = "Calibration successful\n";
     DEBUG_PRINT("Calibrating self with automatic calibration\n")
     latestCalibration = calibrateSelf(true, true); // calibrate gamma and tau
     saveParamsEEPROM(latestCalibration); // save calibration to EEPROM

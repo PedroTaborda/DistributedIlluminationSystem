@@ -227,7 +227,7 @@ void Comms::processReceivedData() volatile
     case MSG_TYPE_COMMAND:
         commandRet = parser.executeCommand((const char *)receivedDataBuffer);
         SEND_MSG(0, RETRY_TIMEOUT_MS,
-            Wire.write(MSG_TYPE_REPLY);
+            Wire.write(MSG_TYPE_REPLY_RAW);
             Wire.write(commandRet);,
         ret)
         DEBUG_PRINT("Received MSG_TYPE_COMMAND with ret=%s\n", commandRet);
@@ -244,9 +244,15 @@ void Comms::processReceivedData() volatile
         Serial.printf("%s", receivedDataBuffer);
         break;
     case MSG_TYPE_BUFFER:
-        #pragma message("TODO: recieve buffer messages")
-    break;
-        
+        Serial.printf(" %f,", *((float *)receivedDataBuffer));
+        receivingBuffer = true;
+        break;
+
+    case MSG_TYPE_BUFFER_END:
+        Serial.printf(" %f\n", *((float *)receivedDataBuffer));
+        receivingBuffer = false;
+        break;
+
     // In case someone has just woken up and I'm id=0, I'll see if we're waiting
     // to start calibration. If yes, reset the counter back to the start.
     case MSG_TYPE_ANNOUNCE_ID:

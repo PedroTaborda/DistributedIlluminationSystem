@@ -56,3 +56,26 @@ void range(int n, double *range, double start, double step)
     for (int i = 0; i < n; i++)
         range[i] = start + i * step;
 }
+
+double dot(int n, double *x, double *y)
+{
+    double sum = 0.0;
+    for (int i = 0; i < n; i++)
+        sum += x[i] * y[i];
+    return sum;
+}
+
+unsigned int argmin(int n, double *x)
+{
+    unsigned int min_idx = 0;
+    double min = x[0];
+    for (int i = 1; i < n; i++)
+    {
+        if (x[i] < min)
+        {
+            min = x[i];
+            min_idx = i;
+        }
+    }
+    return min_idx;
+}

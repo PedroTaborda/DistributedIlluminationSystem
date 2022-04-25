@@ -2,9 +2,9 @@
 #include "Arduino.h"
 #include <cstdint>
 
-char NOT_IMPLEMENTED_BUF[] = "Not implemented";
-char ACK_BUF[] = "ack";
-char ERR_BUF[] = "err";
+char NOT_IMPLEMENTED_BUF[] = "Not implemented\n";
+char ACK_BUF[] = "ack\n";
+char ERR_BUF[] = "err\n";
 
 /* Removes luminaire ID from command string, leaving only its arguments.
  */
