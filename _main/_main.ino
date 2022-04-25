@@ -1,16 +1,16 @@
 #include <Arduino.h>
 #include <EEPROM.h>
-
+#include <Wire.h>
+// #include <hardware/dma.h>
 #include <pico/stdlib.h>
-#include <hardware/dma.h>
 
 #include "calibration.hpp"
+#include "comms.hpp"
 #include "controller.hpp"
 #include "globals.hpp"
-#include "utilities.hpp"
-#include "comms.hpp"
-#include "parser.hpp"
 #include "network.hpp"
+#include "parser.hpp"
+#include "utilities.hpp"
 
 // Initialization of global variables
 
@@ -31,7 +31,7 @@ bool streamReference = false;
 
 #define outBufferSize (60*100)
 float outBuffer[outBufferSize];
-float outBuffer_i = outBufferSize;     // >= outBufferSize means no transfer to be done
+int outBuffer_i = outBufferSize;  // >= outBufferSize means no transfer to be done
 
 alarm_pool_t* core1AlarmPool;
 
@@ -55,28 +55,28 @@ CommandParser parser(
         {'\0', "", "", NULL, NULL}}},
     {'d', "<float>", "sets the duty cycle", floatArgCom([](float duty){if(duty < 0 || duty > 1) ERR controller.turnControllerOff(); set_u(duty); ACK}), NULL},
     {'g', "", "get command", NULL, (Command[]){
-        {'a', "", "anti-windup", printfCom("a %d %d", myID, controller.getAntiWindup()), NULL},
-        {'b', "", "feedback", printfCom("b %d %d", myID, controller.getFeedback()), NULL},
+        {'a', "", "anti-windup", printfCom("a %d %d\n", myID, controller.getAntiWindup()), NULL},
+        {'b', "", "feedback", printfCom("b %d %d\n", myID, controller.getFeedback()), NULL},
         {'c', "", "current energy cost", notImplemented, NULL},
-        {'d', "", "duty cycle", printfCom("d %d %f", myID, controller.getSample().u), NULL},
-        {'e', "", "accumulated energy", printfCom("e %d %f", myID, controller.getEnergySpent()), NULL},
-        {'f', "", "accumulated flicker error", printfCom("f %d %f", myID, controller.getFlickerAccumulator()), NULL},
-        {'F', "", "average flicker error", printfCom("f %d %f", myID, controller.getFlickerAccumulator() / controller.getSampleNumber()), NULL},
-        {'l', "", "measured luminance", printfCom("l %d %f", myID, controller.getSample().L), NULL},
+        {'d', "", "duty cycle", printfCom("d %d %f\n", myID, controller.getSample().u), NULL},
+        {'e', "", "accumulated energy", printfCom("e %d %f\n", myID, controller.getEnergySpent()), NULL},
+        {'f', "", "accumulated flicker error", printfCom("f %d %f\n", myID, controller.getFlickerAccumulator()), NULL},
+        {'F', "", "average flicker error", printfCom("f %d %f\n", myID, controller.getFlickerAccumulator() / controller.getSampleNumber()), NULL},
+        {'l', "", "measured luminance", printfCom("l %d %f\n", myID, controller.getSample().L), NULL},
         {'L', "", "luminance lower bound", notImplemented, NULL},
-        {'o', "", "occupancy", printfCom("o %d %d", myID, controller.getOccupancy()), NULL},
+        {'o', "", "occupancy", printfCom("o %d %d\n", myID, controller.getOccupancy()), NULL},
         {'O', "", "occupied luminance lower bound", notImplemented, NULL},
-        {'p', "", "instantaneous power", printfCom("p %d %f", myID, controller.getSample().u), NULL},
-        {'r', "", "reference", printfCom("r %d %f", myID, controller.getSample().Reference), NULL},
-        {'t', "", "time since restart", printfCom("t %d %lu", myID, to_ms_since_boot(get_absolute_time()) / 1000), NULL},
+        {'p', "", "instantaneous power", printfCom("p %d %f\n", myID, controller.getSample().u), NULL},
+        {'r', "", "reference", printfCom("r %d %f\n", myID, controller.getSample().Reference), NULL},
+        {'t', "", "time since restart", printfCom("t %d %lu\n", myID, to_ms_since_boot(get_absolute_time()) / 1000), NULL},
         {'U', "", "unoccupied luminance lower bound", notImplemented, NULL},
-        {'v', "", "accumulated visibility error", printfCom("v %d %f", myID, controller.getVisibilityAccumulator()), NULL},
-        {'V', "", "average visiblity error", printfCom("f %d %f", myID, controller.getVisibilityAccumulator() / controller.getSampleNumber()), NULL},
-        {'w', "", "feedforward", printfCom("w %d %d", myID, controller.getFeedforward()), NULL},
-        {'x', "", "external luminance", printfCom("x %d %f", myID, controller.getSample().L - gain * controller.getSample().u), NULL},
+        {'v', "", "accumulated visibility error", printfCom("v %d %f\n", myID, controller.getVisibilityAccumulator()), NULL},
+        {'V', "", "average visiblity error", printfCom("f %d %f\n", myID, controller.getVisibilityAccumulator() / controller.getSampleNumber()), NULL},
+        {'w', "", "feedforward", printfCom("w %d %d\n", myID, controller.getFeedforward()), NULL},
+        {'x', "", "external luminance", printfCom("x %d %f\n", myID, controller.getSample().L - gain * controller.getSample().u), NULL},
         {'\0', "", "", NULL, NULL}}},
     {'h', "", "help", noArgCom(help), NULL},
-    {'k', "<int>", "callibrator gain <id> to <id>", intArgCom([](int id) {printI2C("k %d %f", myID, calibrator.getGainId(network.getIndexId(id))) }), NULL},
+    {'k', "<int>", "callibrator gain <id> to <id>", intArgCom([](int id) {printI2C("k %d %f\n", myID, calibrator.getGainId(network.getIndexId(id))) }), NULL},
     {'o', "<int>", "sets the occupancy state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setOccupancy(val); ACK}), NULL},
     {'O', "<float>", "sets the occupied lower bound lumminance", notImplemented, NULL},
     {'p', "", "ack", noArgCom([](){ACK}), NULL},
@@ -86,7 +86,7 @@ CommandParser parser(
         {'l', "", "measured lumminance", notImplemented, NULL},
         {'d', "", "duty cycle", notImplemented, NULL},
         {'\0', "", "", NULL, NULL}}},
-    {'t', "", "time", printfCom("t %d %lu", myID, millis()), NULL},
+    {'t', "", "time", printfCom("t %d %lu\n", myID, millis()), NULL},
     {'U', "<float>", "sets the unoccupied lower bound lumminance", notImplemented, NULL},
     {'w', "<int>", "sets the feedforward state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setFeedforward(val); ACK}), NULL},
     {'\0', "", "", NULL, NULL}
@@ -125,16 +125,22 @@ void loop() {
 
     comms.eventLoop();
 
-    #pragma message("disabled because it wouldnt compile")
-    #ifdef UNDEFINED_MACRO_IS_UNDEFINED_PLEASE
     static unsigned long lastTimeBufferComm = micros();
     unsigned long deltaTimeBufferComm = micros() - lastTimeBufferComm;
+    int ret;
     if(outBuffer_i < outBufferSize && deltaTimeBufferComm > 20000){
-        Send(outBuffer_i);
+        if (outBuffer_i == 0) {
+            char str[16];
+            sprintf(str, " %.3f", outBuffer[outBuffer_i]);
+            SEND_MSG(0, 200, Wire.write(MSG_TYPE_REPLY_RAW);
+                     Wire.write((byte*)&outBuffer[outBuffer_i], sizeof(outBuffer[0]));, ret);
+        } else {
+            SEND_MSG(0, 200, Wire.write(MSG_TYPE_BUFFER);
+                     Wire.write((byte*)&outBuffer[outBuffer_i], sizeof(outBuffer[0]));, ret);
+        }
         outBuffer_i++;
         lastTimeBufferComm = micros();
     }
-    #endif
 }
 
 void setup1() {
