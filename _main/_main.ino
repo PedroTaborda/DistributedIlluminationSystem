@@ -117,6 +117,8 @@ void setup() {
     DEBUG_PRINT("Done waiting. Calibration starting...\n")
     if(comms.my_id == 0)
         comms.calibrateNetwork();
+
+    controller.turnControllerOn();
 }
 
 void loop() {

@@ -18,8 +18,8 @@ void Controller::setup(float proportionalGain, float integralGain) volatile {
     feedback = true;
     feedforward = true;
     controllerOn = true;
-    control_on_req = true;
-    simulatorOn = true;
+    control_on_req = false;
+    simulatorOn = false;
     reference[0] = 0;
     reference[1] = 0;
     refL_mlux = 0;
