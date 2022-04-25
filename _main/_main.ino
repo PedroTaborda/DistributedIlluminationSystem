@@ -28,6 +28,10 @@ bool streamTrackingError = false;
 bool streamSimulator = false;
 bool streamReference = false;
 
+#define outBufferSize (60*100)
+float outBuffer[outBufferSize];
+float outBuffer_i = outBufferSize;     // >= outBufferSize means no transfer to be done
+
 alarm_pool_t* core1AlarmPool;
 
 int myID = 0;
@@ -36,10 +40,10 @@ IntFloat intfloat0, intfloat1;
 
 CommandParser parser(
     (Command[]){
-    {'a', "<int>", "sets the anti-windup state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setOccupancy(val); ACK}), NULL},
+    {'a', "<int>", "sets the anti-windup state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setAntiWindup(val); ACK}), NULL},
     {'b', "<int>", "sets the feedback state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setFeedback(val); ACK}), NULL},
     {'B', "", "get last minute buffer", NULL, (Command[]){
-        {'l', "", "measured lumminance", notImplemented, NULL},
+        {'l', "", "measured lumminance", somefunc, NULL},
         {'d', "", "duty cycle", notImplemented, NULL},
         {'\0', "", "", NULL, NULL}}},
     {'C', "", "calibration utilities", NULL, (Command[]){
@@ -54,9 +58,9 @@ CommandParser parser(
         {'b', "", "feedback", printfCom("b %d %d", myID, controller.getFeedback()), NULL},
         {'c', "", "current energy cost", notImplemented, NULL},
         {'d', "", "duty cycle", printfCom("d %d %f", myID, controller.getSample().u), NULL},
-        {'e', "", "accumulated energy", printfCom("e %d %f", myID, energy), NULL},
-        {'f', "", "accumulated flicker error", printfCom("f %d %f", myID, flickerAccumulator), NULL},
-        {'F', "", "average flicker error", printfCom("f %d %f", myID, flickerAccumulator / sampleNumber), NULL},
+        {'e', "", "accumulated energy", printfCom("e %d %f", myID, controller.getEnergySpent()), NULL},
+        {'f', "", "accumulated flicker error", printfCom("f %d %f", myID, controller.getFlickerAccumulator()), NULL},
+        {'F', "", "average flicker error", printfCom("f %d %f", myID, controller.getFlickerAccumulator() / controller.getSampleNumber()), NULL},
         {'l', "", "measured luminance", printfCom("l %d %f", myID, controller.getSample().L), NULL},
         {'L', "", "luminance lower bound", notImplemented, NULL},
         {'o', "", "occupancy", printfCom("o %d %d", myID, controller.getOccupancy()), NULL},
@@ -65,8 +69,8 @@ CommandParser parser(
         {'r', "", "reference", printfCom("r %d %f", myID, controller.getSample().Reference), NULL},
         {'t', "", "time since restart", printfCom("t %d %lu", myID, to_ms_since_boot(get_absolute_time()) / 1000), NULL},
         {'U', "", "unoccupied luminance lower bound", notImplemented, NULL},
-        {'v', "", "accumulated visibility error", printfCom("v %d %f", myID, visibilityAccumulator), NULL},
-        {'V', "", "average visiblity error", printfCom("f %d %f", myID, visibilityAccumulator / sampleNumber), NULL},
+        {'v', "", "accumulated visibility error", printfCom("v %d %f", myID, controller.getVisibilityAccumulator()), NULL},
+        {'V', "", "average visiblity error", printfCom("f %d %f", myID, controller.getVisibilityAccumulator() / controller.getSampleNumber()), NULL},
         {'w', "", "feedforward", printfCom("w %d %d", myID, controller.getFeedforward()), NULL},
         {'x', "", "external luminance", printfCom("x %d %f", myID, controller.getSample().L - gain * controller.getSample().u), NULL},
         {'\0', "", "", NULL, NULL}}},
@@ -119,6 +123,15 @@ void loop() {
         parseSerial(comms);
 
     comms.eventLoop();
+
+    
+    static unsigned long lastTimeBufferComm = micros();
+    unsigned long deltaTimeBufferComm = micros() - lastTimeBufferComm;
+    if(outBuffer_i < outBufferSize && deltaTimeBufferComm > 20000){
+        Send(outBuffer_i);
+        outBuffer_i++;
+        lastTimeBufferComm = micros();
+    }
 }
 
 void setup1() {

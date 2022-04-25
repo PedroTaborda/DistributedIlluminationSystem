@@ -263,7 +263,7 @@ void Controller::turnControllerOff() volatile {
 
 void Controller::turnControllerOn() volatile { control_on_req = true; }
 
-void Controller::toggleAntiWindup() volatile { antiWindup = !antiWindup; }
+void Controller::setAntiWindup(bool antiWindup_in) volatile { antiWindup = antiWindup_in; }
 
 void Controller::setFeedback(bool feedback_in) volatile { feedback = feedback_in; }
 
@@ -284,3 +284,4 @@ bool Controller::getFeedforward() volatile { return feedforward; }
 float Controller::getProportionalGain() volatile { return proportionalGain; }
 
 float Controller::getIntegralGain() volatile { return integralGain; }
+

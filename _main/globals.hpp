@@ -40,28 +40,8 @@ extern double voltageAscending[10], voltageDescending[10];
 extern float gain;
 extern float ambientIlluminance;
 
-// Buffers for variables
-extern volatile Buffer<volatile float, 60*100> luminanceBuffer;
-extern volatile Buffer<volatile float, 60*100> dutyBuffer;
-extern bool streamLuminanceBuffer;
-extern bool streamDutyBuffer;
-extern volatile double energy;
-extern volatile double visibilityAccumulator;
-extern volatile double flickerAccumulator;
-extern volatile double previousFlicker;
-extern volatile double previousLux;
-extern volatile unsigned long sampleNumber;
-
 // Alarm Pool object to allow interrupts on the second core
 extern alarm_pool_t* core1AlarmPool;
-
-// Copy buffer and related variables. This is used to transfer a
-// buffer from core 1 to core 0, bypassing the FIFO comunication queue
-// between cores, given the information volume.
-extern bool bufferLock;
-extern int dmaChannel;
-extern float copyBuffer[60*100];
-extern int currentHead;
 
 extern luminaireParams latestCalibration;
 luminaireParams activeParams();

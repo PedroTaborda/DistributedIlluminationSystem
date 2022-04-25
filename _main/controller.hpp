@@ -20,6 +20,17 @@ struct sample_t {
         Reference = a.Reference;
         num = a.num;
     }
+    sample_t() {}
+    sample_t(volatile sample_t &a) {
+        dur = a.dur;
+        L = a.L;
+        u = a.u;
+        IntegralError = a.IntegralError;
+        TrackingError = a.TrackingError;
+        SimulatorValue = a.SimulatorValue;
+        Reference = a.Reference;
+        num = a.num;
+    }
     unsigned long dur;  // in us
     float L;            // in lux
     float u;
@@ -54,9 +65,9 @@ class Controller {
     // Controller settings
     void turnControllerOff() volatile;
     void turnControllerOn() volatile;
-    void toggleAntiWindup() volatile;
-    void setFeedback(bool feedback_in) volatile;
-    void setFeedforward(bool feedback_in) volatile;
+    void setAntiWindup(bool antiWindup) volatile;
+    void setFeedback(bool feedback) volatile;
+    void setFeedforward(bool feedforward) volatile;
     void setSimulator(int simulator) volatile;
     void setProportionalGain(float proportionalGain) volatile;
     void setIntegralGain(float integralGain) volatile;
@@ -95,7 +106,7 @@ class Controller {
 
     // sample buffer of size 2 such that controller can write to one position while the class user
     // reads the other position
-    Buffer<sample_t, 2> latest_sample;
+    Buffer<volatile sample_t, 2> latest_sample;
 
     // Controller auxiliary variables
     float trackingError, simulatorValue;

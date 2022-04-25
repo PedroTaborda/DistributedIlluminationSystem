@@ -208,7 +208,14 @@ void Comms::processReceivedData() volatile
     case MSG_TYPE_REPLY:
     case MSG_TYPE_STREAM:
         Serial.printf("%s\n", receivedDataBuffer);
+        break; 
+    // If a raw reply is coming my way, I will relay it exactly to the Serial interface.
+    case MSG_TYPE_REPLY_RAW:
+        Serial.printf("%s", receivedDataBuffer);
         break;
+    case MSG_TYPE_BUFFER:
+        #pragma message("TODO: recieve buffer messages")
+    break;
         
     // In case someone has just woken up and I'm id=0, I'll see if we're waiting
     // to start calibration. If yes, reset the counter back to the start.
