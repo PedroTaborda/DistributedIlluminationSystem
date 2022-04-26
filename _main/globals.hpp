@@ -6,7 +6,7 @@
 #include "buffer.hpp"
 
 #ifdef DEBUG
-#define DEBUG_PRINT(...) {Serial.print("[DEBUG] ");Serial.printf(__VA_ARGS__);}
+#define DEBUG_PRINT(...) {Serial.printf("[DEBUG] [%010llu] ", time_us_64());Serial.printf(__VA_ARGS__);}
 #else
 #define DEBUG_PRINT(...) {}
 #endif
@@ -52,5 +52,7 @@ extern alarm_pool_t* core1AlarmPool;
 
 extern luminaireParams latestCalibration;
 luminaireParams activeParams();
+
+extern bool acknowledge;
 
 #endif //GLOBALS_HPP

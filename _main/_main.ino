@@ -40,6 +40,8 @@ int myID = 0;
 
 IntFloat intfloat0, intfloat1;
 
+bool acknowledge = false;
+
 CommandParser parser(
     (Command[]){
     {'a', "<int>", "sets the anti-windup state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setAntiWindup(val); ACK}), NULL},
@@ -150,18 +152,44 @@ void loop() {
         if(consensus.state == CONSENSUS_STATE_COMPUTING_LOCAL) {
             double *sol = consensus.optimumSolution();
             consensus.updateDiMean(sol);
-            for(uint8_t i = 0; i < network.getNumberNodesNetwork(); i++) {
-                if(network.getNetwork()[i] == myID) continue;
-                signed char address = addr_offset + network.getNetwork()[i];
-                DEBUG_PRINT("Sending D to %hhd\n", address)
-                SEND_MSG(address, CONSENSUS_RETRY_TIMEOUT_MS,
-                    Wire.write(MSG_TYPE_CONSENSUS_D);
-                    for(uint8_t j = 0; j < network.getNumberNodesNetwork(); j++) {
-                        DEBUG_PRINT("Local d[%hhu] = %lf\n", j, sol[j])
+            consensus.received(myID);
+            //bool seen[network.getNumberNodesNetwork()] = {false};
+            //for(uint8_t i = 0; i < network.getNumberNodesNetwork(); i++) {
+                /*if(seen[i]) continue;
+                uint8_t address = addr_offset + network.getNetwork()[i];
+                Wire.requestFrom(address, 1);
+                while(Wire.available())
+                    seen[i] = Wire.read();
+
+                if(seen[i]) {
+                    Wire.requestFrom(address, sizeof(double) * network.getNumberNodesNetwork() + 1);
+                    double input[network.getNumberNodesNetwork()];
+                    uint8_t *readBuffer = (uint8_t *)&input;
+                    Wire.read();
+                    while(Wire.available()) {
+                        *readBuffer = Wire.read();
+                        readBuffer++;
                     }
-                    Wire.write((uint8_t*)sol, sizeof(double) * network.getNumberNodesNetwork());,
-                ret)
-            }
+                    for(uint8_t j = 0; j < network.getNumberNodesNetwork(); j++) {
+                        DEBUG_PRINT("Local d[%hhu] = %lf\n", j, input[j])
+                    }
+                    consensus.updateDiMean(input);
+                }*/
+            /*signed char address = addr_offset + network.getNetwork()[i];
+            DEBUG_PRINT("Sending D to %hhd\n", address)
+            long int t0 = millis();*/
+            SEND_MSG(0, CONSENSUS_RETRY_TIMEOUT_MS,
+                Wire.write(MSG_TYPE_CONSENSUS_D);
+                for(uint8_t j = 0; j < network.getNumberNodesNetwork(); j++) {
+                    DEBUG_PRINT("Local d[%hhu] = %lf\n", j, sol[j])
+                }
+                Wire.write((uint8_t*)sol, sizeof(double) * network.getNumberNodesNetwork());,
+            ret)
+
+            //}
+        }
+        else if(consensus.state == CONSENSUS_STATE_WAITING_FOR_NEIGHBORS && millis() - consensus.beginWaitTime > RETRY_TIMEOUT_MS) {
+            consensus.requestMissingD();
         }
         else if(consensus.state == CONSENSUS_STATE_WAITING_CONSENSUS) {
             consensus.finishIter();

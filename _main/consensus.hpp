@@ -73,7 +73,6 @@ public:
 
     double *optimumSolution()
     {
-        setState(CONSENSUS_STATE_WAITING_FOR_NEIGHBORS);
         computezi();
 
         sol = argming();
@@ -84,6 +83,8 @@ public:
                 di[i] = sol[i];
             }
             //printf("Best: g\n");
+            setState(CONSENSUS_STATE_WAITING_FOR_NEIGHBORS);
+            beginWaitTime = millis();
             return sol;
         }
 
@@ -107,7 +108,37 @@ public:
         }
         //printf("Costs: %f, %f, %f, %f, %f\n", costs[0] > 100000 ? -1 : costs[0], costs[1] > 100000 ? -1 : costs[1], costs[2] > 100000 ? -1 : costs[2], costs[3] > 100000 ? -1 : costs[3], costs[4] > 100000 ? -1 : costs[4]);
         //printf("Best: %d\n", best);
+        setState(CONSENSUS_STATE_WAITING_FOR_NEIGHBORS);
+        beginWaitTime = millis();
         return S[best];
+    }
+
+    bool notReceived(uint8_t ID) {
+        return !receivedDi[network.getNetwork()[ID]];
+    }
+
+    void received(uint8_t ID) {
+        receivedDi[network.getNetwork()[ID]] = true;
+    }
+
+    void resetReceived() {
+        for(uint8_t i = 0; i < nNodes; i++) {
+            receivedDi[i] = false;
+        }
+    }
+
+    void requestMissingD() {
+        for(uint8_t i = 0; i < nNodes; i++) {
+            if(!receivedDi[i]) {
+                int ret;
+                DEBUG_PRINT("Asking for %hhu di\n", i);
+                SEND_MSG(0, RETRY_TIMEOUT_MS,
+                    Wire.write(MSG_TYPE_CONSENSUS_ASK_D);
+                    Wire.write(network.getNetwork()[i]);,
+                ret)
+            }
+        }
+        beginWaitTime = millis();
     }
 
     ConsensusState state = CONSENSUS_STATE_NOT_STARTED;
@@ -128,6 +159,8 @@ public:
 
     double diMean[MAX_DEVICES];
     double _diMean[MAX_DEVICES];
+    bool receivedDi[MAX_DEVICES] = {false};
+    long beginWaitTime;
     double diCount = 0; // stored as double to avoid integer division - valid up to values much larger than MAX_DEVICES
 
     double zi[MAX_DEVICES];
@@ -146,7 +179,8 @@ public:
         diCount = 0;
         iteration++;
         DEBUG_PRINT("Iteration %d\n", iteration)
-        if(iteration < 4)
+        resetReceived();
+        if(iteration < 20)
             setState(CONSENSUS_STATE_COMPUTING_LOCAL);
         else {
             DEBUG_PRINT("Finished consensus.\n")

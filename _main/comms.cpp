@@ -8,6 +8,7 @@
 #include <Wire.h>
 
 volatile Comms* _comms;
+int asked = 1;
 
 bool receivingBuffer = false;
 
@@ -34,7 +35,7 @@ bool Comms::joinNetwork() volatile
 
         // If no one was at the address being probed, it is now
         // ours.
-        if (ret == 2)
+        if (ret == 4)
         {
             my_id = my_potential_addr - addr_offset;
             myID = my_id;
@@ -152,6 +153,7 @@ ProcessingResult Comms::processCommand(const char *command) volatile
     // Serial.printf("Sending command: '%s'\n", strippedCommand);
     Wire.beginTransmission(luminaireID + addr_offset);
     DEBUG_PRINT("Sending MSG_TYPE_COMMAND")
+    Wire.write(myID);
     Wire.write(MSG_TYPE_COMMAND);
     while (*strippedCommand)
     {
@@ -173,6 +175,7 @@ ProcessingResult Comms::processCommand(const char *command) volatile
 
 void Comms::onReceive(int signed bytesReceived) volatile
 {
+    signed char id = (MSG_TYPE) Wire1.read();
     MSG_TYPE msgType = (MSG_TYPE) Wire1.read();
     messageCounter += 1;
     //error = true;
@@ -189,26 +192,36 @@ void Comms::onReceive(int signed bytesReceived) volatile
 
     receivedMsgTypeBuffer.insert(msgType);
     receivedDataSize = 0;
-    receivedMsgDataBuffer[dataBufferHead][0] = '\0';
-    if (bytesReceived == 1) {
+    receivedMsgDataBuffer[dataBufferHead][0] = id;
+    receivedMsgDataBuffer[dataBufferHead][1] = '\0';
+    if (bytesReceived == 2) {
         dataBufferHead = (MSG_BUFFER_SIZE + dataBufferHead + 1) % MSG_BUFFER_SIZE;
         dataBufferItems = min(MSG_BUFFER_SIZE, dataBufferItems + 1);
         return;
     }
     
-    for (int buf_idx = 0; buf_idx < bytesReceived - 1; buf_idx++)
+    for (int buf_idx = 1; buf_idx < bytesReceived; buf_idx++)
     {
         receivedMsgDataBuffer[dataBufferHead][buf_idx] = (uint8_t)Wire1.read();
     }
-    receivedMsgDataBuffer[dataBufferHead][bytesReceived - 1] = '\0';
+    receivedMsgDataBuffer[dataBufferHead][bytesReceived] = '\0';
     dataBufferHead = (MSG_BUFFER_SIZE + dataBufferHead + 1) % MSG_BUFFER_SIZE;
     dataBufferItems = min(MSG_BUFFER_SIZE, dataBufferItems + 1);
-    receivedDataSize = bytesReceived - 1;
+    receivedDataSize = bytesReceived;
 }
 
 void Comms::onRequest() volatile
 {
-    Wire.write(1);
+    Wire1.write(consensus.state == CONSENSUS_STATE_WAITING_FOR_NEIGHBORS);
+
+    if(consensus.state == CONSENSUS_STATE_WAITING_CONSENSUS)
+        Wire1.write((uint8_t *)consensus.di, sizeof(double) * network.getNumberNodesNetwork());
+
+    asked += 1;
+    if(asked == network.getNumberNodesNetwork()) {
+        consensus.setState(CONSENSUS_STATE_WAITING_CONSENSUS);
+        asked = 1;
+    }
 }
 
 void Comms::flushError() volatile{
@@ -243,7 +256,7 @@ void Comms::processReceivedData() volatile
     {
     // If a command was issued to me, I will execute it and reply with the result.
     case MSG_TYPE_COMMAND:
-        commandRet = parser.executeCommand((const char *)receivedDataBuffer);
+        commandRet = parser.executeCommand((const char *)(receivedDataBuffer + 1));
         SEND_MSG(0, RETRY_TIMEOUT_MS,
             Wire.write(MSG_TYPE_REPLY_RAW);
             Wire.write(commandRet);,
@@ -255,22 +268,22 @@ void Comms::processReceivedData() volatile
     // Same for stream.
     case MSG_TYPE_REPLY:
     case MSG_TYPE_STREAM:
-        Serial.printf("%s\n", receivedDataBuffer);
+        Serial.printf("%s\n", receivedDataBuffer + 1);
         DEBUG_PRINT("Received MSG_TYPE_REPLY/STREAM\n")
         break; 
     // If a raw reply is coming my way, I will relay it exactly to the Serial interface.
     case MSG_TYPE_REPLY_RAW:
-        Serial.printf("%s", receivedDataBuffer);
+        Serial.printf("%s", receivedDataBuffer + 1);
         DEBUG_PRINT("Received MSG_TYPE_REPLY_RAW\n")
         break;
     case MSG_TYPE_BUFFER:
-        Serial.printf(" %f,", *((float *)receivedDataBuffer));
+        Serial.printf(" %f,", *((float *)(receivedDataBuffer + 1)));
         receivingBuffer = true;
         DEBUG_PRINT("Received MSG_TYPE_BUFFER\n")
         break;
 
     case MSG_TYPE_BUFFER_END:
-        Serial.printf(" %f\n", *((float *)receivedDataBuffer));
+        Serial.printf(" %f\n", *((float *)(receivedDataBuffer + 1)));
         receivingBuffer = false;
         DEBUG_PRINT("Received MSG_TYPE_BUFFER_END\n")
         break;
@@ -278,7 +291,7 @@ void Comms::processReceivedData() volatile
     // In case someone has just woken up and I'm id=0, I'll see if we're waiting
     // to start calibration. If yes, reset the counter back to the start.
     case MSG_TYPE_ANNOUNCE_ID:
-        network.addNodeToNetwork(receivedDataBuffer[0]);
+        network.addNodeToNetwork(receivedDataBuffer[1]);
         if(my_id == 0 && calibrator.waiting()) {
             calibrator.resetWait();
         }
@@ -314,7 +327,7 @@ void Comms::processReceivedData() volatile
         // The maestro ignores its own calls to calibrate
         if(!calibrator.isMaestro()) {
             if(receivedDataBuffer[0] != my_id)
-                calibrator.calibrateGainId(receivedDataBuffer[0]);
+                calibrator.calibrateGainId(receivedDataBuffer[1]);
             else
                 calibrator.selfCalibrate(my_id);
         }
@@ -327,7 +340,7 @@ void Comms::processReceivedData() volatile
         DEBUG_PRINT("Received MSG_TYPE_END_CALIBRATION\n")
         break;
     case MSG_TYPE_VERIFY_LIST:
-        if(!network.compareNetwork((uint8_t *)receivedDataBuffer + 1, (uint8_t)receivedDataBuffer[0])) {
+        if(!network.compareNetwork((uint8_t *)receivedDataBuffer + 2, (uint8_t)receivedDataBuffer[1])) {
             SEND_MSG(0, RETRY_TIMEOUT_MS,
             Wire.write(MSG_TYPE_VERIFY_LIST_NACK);,
             ret)
@@ -352,16 +365,27 @@ void Comms::processReceivedData() volatile
         break;
     case MSG_TYPE_CONSENSUS_D:
         DEBUG_PRINT("Received MSG_TYPE_CONSENSUS_D\n")
-        if(consensus.active()) {
+        if(consensus.active() && consensus.notReceived(receivedDataBuffer[0])) {
             double receivedD[MAX_DEVICES];
-            memcpy(receivedD, (const void*) receivedDataBuffer, sizeof(double) * network.getNumberNodesNetwork());
+            memcpy(receivedD, (const void*) (receivedDataBuffer + 1), sizeof(double) * network.getNumberNodesNetwork());
             for(uint8_t i = 0; i < network.getNumberNodesNetwork(); i++) {
                 DEBUG_PRINT("d[%hhu] = %lf\n", i, receivedD[i])
             }
             consensus.updateDiMean(receivedD);
+            consensus.received(receivedDataBuffer[0]);
         }
         else
             DEBUG_PRINT("Not running consensus\n")
+        break;
+    case MSG_TYPE_CONSENSUS_ASK_D:
+        DEBUG_PRINT("Received MSG_TYPE_CONSENSUS_ASK_D\n")
+        if(myID == receivedDataBuffer[1] && (consensus.state == CONSENSUS_STATE_WAITING_FOR_NEIGHBORS ||
+            consensus.state == CONSENSUS_STATE_NOT_STARTED)) {
+            SEND_MSG(0, RETRY_TIMEOUT_MS,
+                Wire.write(MSG_TYPE_CONSENSUS_D);
+                Wire.write((uint8_t*)consensus.di, sizeof(double) * network.getNumberNodesNetwork());,
+            ret)
+        }
         break;
     case MSG_TYPE_CONSENSUS_CONVERGENCE:
         DEBUG_PRINT("Received MSG_TYPE_CONSENSUS_CONVERGENCE\n")

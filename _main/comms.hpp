@@ -2,6 +2,7 @@
 #define COMMS_HPP
 
 #include "buffer.hpp"
+#include "globals.hpp"
 #include "parser.hpp"
 #include <Arduino.h>
 
@@ -11,6 +12,7 @@
         do                                                      \
         {                                                       \
             Wire.beginTransmission(addr);                       \
+            Wire.write(myID);                                   \
             WRITE_STATEMENTS                                    \
             ret = Wire.endTransmission(true);                   \
         } while ((ret) && ((millis() - t0) < timeout_ms));      \
@@ -68,6 +70,7 @@ enum MSG_TYPE : unsigned char {
     MSG_TYPE_VERIFY_LIST_NACK,
     MSG_TYPE_CONSENSUS_START,
     MSG_TYPE_CONSENSUS_D,
+    MSG_TYPE_CONSENSUS_ASK_D,
     MSG_TYPE_CONSENSUS_CONVERGENCE,
 };
 
