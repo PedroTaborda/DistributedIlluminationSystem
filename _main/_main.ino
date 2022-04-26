@@ -53,7 +53,7 @@ CommandParser parser(
         {'s', "<bool: gamma> <bool: tau>", "saves gamma and/or tau from calibrated parameters as final (writes to EEPROM)", saveCalibrationCommand, NULL},
         {'p', "", "print latest calibrated parameters and active parameters", noArgCom(printCalibratedCommand), NULL},
         {'\0', "", "", NULL, NULL}}},
-    {'d', "<float>", "sets the duty cycle", floatArgCom([](float duty){if(duty < 0 || duty > 1) ERR controller.turnControllerOff(); set_u(duty); ACK}), NULL},
+    {'d', "<float>", "sets the duty cycle", floatArgCom([](float duty){if(duty < 0 || duty > 1) ERR controller.setDutyCycle(duty); ACK}), NULL},
     {'g', "", "get command", NULL, (Command[]){
         {'a', "", "anti-windup", printfCom("a %d %d\n", myID, controller.getAntiWindup()), NULL},
         {'b', "", "feedback", printfCom("b %d %d\n", myID, controller.getFeedback()), NULL},
