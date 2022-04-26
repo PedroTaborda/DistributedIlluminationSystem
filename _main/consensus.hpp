@@ -182,7 +182,7 @@ public:
     unsigned int I = 0; // index of this node
     unsigned int iteration = 0;
 
-    double li = 1.0f;
+    double li = 0.0f;
     double oi;
     double localCost = 1.0;
     double ki[MAX_DEVICES]; // staticGains (calibration.hpp)
