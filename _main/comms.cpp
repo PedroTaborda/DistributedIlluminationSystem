@@ -220,16 +220,6 @@ void Comms::onReceive(int signed bytesReceived) volatile
 
 void Comms::onRequest() volatile
 {
-    Wire1.write(consensus.state == CONSENSUS_STATE_WAITING_FOR_NEIGHBORS);
-
-    if(consensus.state == CONSENSUS_STATE_WAITING_CONSENSUS)
-        Wire1.write((uint8_t *)consensus.di, sizeof(double) * network.getNumberNodesNetwork());
-
-    asked += 1;
-    if(asked == network.getNumberNodesNetwork()) {
-        consensus.setState(CONSENSUS_STATE_WAITING_CONSENSUS);
-        asked = 1;
-    }
 }
 
 void Comms::flushError() volatile{
@@ -445,11 +435,16 @@ void Comms::processReceivedData() volatile
         if(consensus.active() && consensus.notReceived(receivedDataBuffer[0]) && receivedDataBuffer[1] == (byte)consensus.iteration) {
             double receivedD[MAX_DEVICES];
             memcpy(receivedD, (const void*) (receivedDataBuffer + 2), sizeof(double) * network.getNumberNodesNetwork());
+            bool badValues = false;
             for(uint8_t i = 0; i < network.getNumberNodesNetwork(); i++) {
                 DEBUG_PRINT("d[%hhu] = %lf\n", i, receivedD[i])
+                if(fabs(receivedD[i]) > 1000.f)
+                    badValues = true;
             }
-            consensus.updateDiMean(receivedD);
-            consensus.received(receivedDataBuffer[0]);
+            if(!badValues) {
+                consensus.updateDiMean(receivedD);
+                consensus.received(receivedDataBuffer[0]);
+            }
         }
         else
             DEBUG_PRINT("Not running consensus\n")
