@@ -222,17 +222,17 @@ public:
     void finishIter(){
         computeNextLagrangeMultipliers();
         diCount = 0;
-        iteration++;
-        DEBUG_PRINT("Iteration %d\n", iteration)
         resetReceived();
         if(iteration < 20)
             setState(CONSENSUS_STATE_COMPUTING_LOCAL);
         else {
             DEBUG_PRINT("Finished consensus.\n")
             for(uint8_t i = 0; i < nNodes; i++)
-                DEBUG_PRINT("d[%hhu] = %lf\n", i, di[i])
+                DEBUG_PRINT("d[%hhu] = %lf\n", i, di[iteration % HOLD_ITERATIONS][i])
             setState(CONSENSUS_STATE_NOT_STARTED);
         }
+        iteration++;
+        DEBUG_PRINT("Iteration %d\n", iteration)
     }
 
     double fPlus(double *d){
@@ -316,7 +316,7 @@ public:
     }
     void computeNextLagrangeMultipliers(){
         for (unsigned int i = 0; i < nNodes; i++){
-            lagrangeMultipliers[i] += rho * (di[iteration][i] - diMean[i]);
+            lagrangeMultipliers[i] += rho * (di[iteration % HOLD_ITERATIONS][i] - diMean[i]);
         }
     }
     void initLagrangeMultipliers(){
