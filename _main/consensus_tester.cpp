@@ -11,13 +11,23 @@ int main()
     ConsensusSolver solver1, solver2;
 
     int nNodes = 2;
-    double newCost[2] = {1.0, 2.0};
-    double gainsMeToOthers1[2] = {10.0, 3};
-    double gainsMeToOthers2[2] = {2, 7.0};
-    solver1.start(nNodes, 0, newCost, gainsMeToOthers1);
-    solver2.start(nNodes, 1, newCost, gainsMeToOthers2);
+    double localCost1 = 1;
+    double localCost2 = 3;
+    double gainsOthersToMe1[2] = {200.0, 50.0};
+    double gainsOthersToMe2[2] = {50.0, 200.0};
+    solver1.li = 80;
+    solver1.oi = 50;
+    solver1.rho = 7.0;
 
-    for (int i = 0; i < 2; i++) {
+    solver2.li = 270;
+    solver2.oi = 50;
+    solver2.rho = 7.0;
+
+    solver1.start(nNodes, 0, localCost1, gainsOthersToMe1);
+    solver2.start(nNodes, 1, localCost2, gainsOthersToMe2);
+
+    for (int i = 0; i < 5; i++) {
+        printf("Iteration %d\n", i);
         double *sol1 = solver1.optimumSolution();
         double *sol2 = solver2.optimumSolution();
 
@@ -26,11 +36,12 @@ int main()
 
         solver1.updateDiMean(sol1);
         solver1.updateDiMean(sol2);
+
         solver2.updateDiMean(sol1);
         solver2.updateDiMean(sol2);
 
-        printf("DiMean 1: %f, %f\n", solver1.diMean[0], solver1.diMean[1]);
-        printf("DiMean 2: %f, %f\n", solver2.diMean[0], solver2.diMean[1]);
+        //printf("DiMean 1: %f, %f\n", solver1.diMean[0], solver1.diMean[1]);
+        //printf("DiMean 2: %f, %f\n", solver2.diMean[0], solver2.diMean[1]);
 
         solver1.finishIter();
         solver2.finishIter();
