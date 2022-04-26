@@ -2,6 +2,7 @@
 #define CONTROLLER_HPP
 
 #include <Arduino.h>
+#include <stdint.h>
 
 //  #include <utility> idk why this was here
 
@@ -11,7 +12,7 @@
 struct sample_t {
     // Overload assignment operator for volatile type
     void operator=(volatile sample_t a) volatile {
-        dur = a.dur;
+        time = a.time;
         L = a.L;
         u = a.u;
         IntegralError = a.IntegralError;
@@ -22,7 +23,7 @@ struct sample_t {
     }
     sample_t() {}
     sample_t(volatile sample_t &a) {
-        dur = a.dur;
+        time = a.time;
         L = a.L;
         u = a.u;
         IntegralError = a.IntegralError;
@@ -31,7 +32,7 @@ struct sample_t {
         Reference = a.Reference;
         num = a.num;
     }
-    unsigned long dur;  // in us
+    uint64_t time;  // in us
     float L;            // in lux
     float u;
     float IntegralError;
@@ -111,8 +112,7 @@ class Controller {
 
     // Controller auxiliary variables
     float trackingError, simulatorValue;
-    unsigned long lastTimestamp;
-    unsigned long sampleDuration;
+    unsigned long sampleInstant;
     // More than outBufferSize so there is a margin between head and tail of buffer
     Buffer<float, outBufferSize + 10> luminanceBuffer;
     Buffer<float, outBufferSize + 10> dutyBuffer;
@@ -124,7 +124,7 @@ class Controller {
     unsigned long sampleNumber;
 
     // Controller parameters
-    float samplingTime;
+    float samplingPeriod;
     float proportionalGain, integralGain;
     bool antiWindup, feedback, feedforward;  // I
 

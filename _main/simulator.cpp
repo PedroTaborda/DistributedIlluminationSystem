@@ -20,14 +20,14 @@ Simulator::Simulator()
     }
 }
 
-void Simulator::initialize(unsigned long initialTime, double initialVoltage, double initialDuty) volatile
+void Simulator::initialize(uint64_t initialTime, double initialVoltage, double initialDuty) volatile
 {
     currentInitialTime = initialTime;
     currentInitialVoltage = initialVoltage;
     currentInitialDuty = initialDuty;
 }
 
-double Simulator::getLuminosity(unsigned long time) volatile{
+double Simulator::getLuminosity(uint64_t time) volatile{
     // Take the current time as given by the microcontroller and determine the difference to the
     // the last switch instant. Then, convert it to seconds.
     double timeSinceSwitch = (double)(time - currentInitialTime);
@@ -50,7 +50,7 @@ double Simulator::getLuminosity(unsigned long time) volatile{
     return predictedLux;
 }
 
-void Simulator::changeInput(unsigned long time, double duty, double currentVoltage) volatile{
+void Simulator::changeInput(uint64_t time, double duty, double currentVoltage) volatile{
     currentInitialTime = time;
     currentInitialVoltage = currentVoltage;
     currentTimeConstant = timeConstant(currentVoltage, l2v(d2l(duty)));

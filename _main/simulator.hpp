@@ -1,18 +1,20 @@
 #ifndef SIMULATOR_HPP
 #define SIMULATOR_HPP
 
+#include <stdint.h>
+
 // Simulates the system's response to a step change in duty cycle at the LED.
 class Simulator {
 public:
     Simulator();
 
     // Initialize the simulator
-    void initialize(unsigned long initialTime, double initialVoltage, double initialDuty) volatile;
+    void initialize(uint64_t initialTime, double initialVoltage, double initialDuty) volatile;
 
     // Get current predicted value
-    double getLuminosity(unsigned long time) volatile;
+    double getLuminosity(uint64_t time) volatile;
     // Step change
-    void changeInput(unsigned long time, double duty, double currentVoltage) volatile;
+    void changeInput(uint64_t time, double duty, double currentVoltage) volatile;
 
 private:
 
