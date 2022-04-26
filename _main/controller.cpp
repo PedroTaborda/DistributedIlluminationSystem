@@ -17,7 +17,7 @@ void Controller::setup(float proportionalGain, float integralGain) volatile {
     antiWindup = true;
     feedback = true;
     feedforward = true;
-    controllerOn = true;
+    controllerOn = false;
     control_on_req = false;
     simulatorOn = false;
     reference[0] = 0;
