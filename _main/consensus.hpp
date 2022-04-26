@@ -1,12 +1,48 @@
 #ifndef CONSENSUS_HPP
 #define CONSENSUS_HPP
 
-#include <Wire.h>
+#include "math_utils.hpp"
 
+#ifndef CONSENSUS_TESTER
+#include <Wire.h>
 #include "comms.hpp"
 #include "globals.hpp"
-#include "math_utils.hpp"
 #include "network.hpp"
+
+#else
+#include <chrono>
+unsigned long millis(){
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
+#define DEBUG_PRINT(...)     \
+    {                        \
+        printf("[DEBUG]");   \
+        printf(__VA_ARGS__); \
+    }
+constexpr int MAX_DEVICES = 16;
+class NetworkDummy
+{
+public:
+    int getNumberNodesNetwork()
+    {
+        return 3;
+    }
+    int *getNetwork()
+    {
+        static int nodes[] = {0, 1, 2};
+        return nodes;
+    }
+    int getIndexId(int id)
+    {
+        return id;
+    }
+};
+NetworkDummy network;
+#define myID I
+#define SEND_MSG(...) {}
+#define addr_offset 0
+#endif
 
 constexpr double TOL = 1e-4;
 

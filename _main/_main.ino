@@ -71,7 +71,7 @@ CommandParser parser(
         {'x', "", "external luminance", printfCom("x %d %f\n", myID, controller.getSample().L - gain * controller.getSample().u), NULL},
         {'\0', "", "", NULL, NULL}}},
     {'h', "", "help", noArgCom(help), NULL},
-    {'k', "<int>", "callibrator gain <id> to <id>", intArgCom([](int id) {printI2C("k %d %f\n", myID, calibrator.getGainId(network.getIndexId(id))) }), NULL},
+    {'k', "<int>", "callibrator gain <id> to <id>", intArgCom([](int id) {printI2C("k %d %d %f\n", myID, id, calibrator.getGainId(network.getIndexId(id))) }), NULL},
     {'o', "<int>", "sets the occupancy state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setOccupancy(val); ACK}), NULL},
     {'O', "<float>", "sets the occupied lower bound lumminance", notImplemented, NULL},
     {'p', "", "ack", noArgCom([](){ACK}), NULL},
