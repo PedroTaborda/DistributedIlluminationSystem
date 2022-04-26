@@ -291,6 +291,7 @@ extern float outBuffer[outBufferSize];
 extern int outBuffer_i;
 
 char *getDutyBufferCommand(const char *args) {
+    (void)args;
     static char ret_str[8] = {0};
     controller.getDutyBuffer(outBuffer);
     outBuffer_i = 0;
@@ -299,6 +300,7 @@ char *getDutyBufferCommand(const char *args) {
 }
 
 char *getIlluminanceCommand(const char *args) {
+    (void)args;
     static char ret_str[8] = {0};
     controller.getIlluminanceBuffer(outBuffer);
     outBuffer_i = 0;

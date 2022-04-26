@@ -22,12 +22,12 @@ public:
     void setState(ConsensusState state) {
         this->state = state;
     }
-    void start(int nNodes, int myI, double newLocalCost, double *gainsMeToAll){
+    void start(unsigned int nNodes, int myI, double newLocalCost, double *gainsMeToAll){
         setState(CONSENSUS_STATE_COMPUTING_LOCAL);
         this->I = myI;
         this->nNodes = nNodes;
         this->state = CONSENSUS_STATE_COMPUTING_LOCAL;
-        for (int i = 0; i < nNodes; i++) {
+        for (unsigned int i = 0; i < nNodes; i++) {
             this->localCost = newLocalCost;
             this->ki[i] = gainsMeToAll[i];
         }
@@ -44,7 +44,7 @@ public:
         sol = argming();
 
         if (isFeasible(sol)){
-            for (int i = 0; i < nNodes; i++)
+            for (unsigned int i = 0; i < nNodes; i++)
             {
                 di[i] = sol[i];
             }
@@ -67,7 +67,7 @@ public:
 
         unsigned int best = argmin(5, costs);
 
-        for (int i = 0; i < nNodes; i++) {
+        for (unsigned int i = 0; i < nNodes; i++) {
             di[i] = S[best][i];
         }
         printf("Costs: %f, %f, %f, %f, %f\n", costs[0] > 100000 ? -1 : costs[0], costs[1] > 100000 ? -1 : costs[1], costs[2] > 100000 ? -1 : costs[2], costs[3] > 100000 ? -1 : costs[3], costs[4] > 100000 ? -1 : costs[4]);
@@ -77,8 +77,8 @@ public:
 
     ConsensusState state = CONSENSUS_STATE_NOT_STARTED;
     unsigned int nNodes = 1;
-    int I = 0; // index of this node
-    int iteration = 0;
+    unsigned int I = 0; // index of this node
+    unsigned int iteration = 0;
 
     double li = 16.0;
     double oi = 10.0;
@@ -119,14 +119,14 @@ public:
     
     double *argming(){
         // g(di) = 0.5 rho di'*di - di'*zi (quadratic cost)
-        for (int i = 0; i < nNodes; i++) {
+        for (unsigned int i = 0; i < nNodes; i++) {
             diGlobalMin[i] = zi[i]/rho;
         }
         return diGlobalMin;
     }
     
     double *getdiS1(){
-        for (int i = 0; i < nNodes; i++) {
+        for (unsigned int i = 0; i < nNodes; i++) {
             diS1[i] = zi[i]/rho - ki[i] * (oi-li+ dot(nNodes, ki, zi)/rho) / dot(nNodes, ki, ki);
         }
         return diS1;
@@ -134,7 +134,7 @@ public:
     
     double *getdiS2()
     {
-        for (int i = 0; i < nNodes; i++) {
+        for (unsigned int i = 0; i < nNodes; i++) {
             diS2[i] = (i==I ? 0.0 : zi[i]/rho ) ;
         }
         return diS2;
@@ -142,7 +142,7 @@ public:
     
     double *getdiS3()
     {
-        for (int i = 0; i < nNodes; i++) {
+        for (unsigned int i = 0; i < nNodes; i++) {
             diS3[i] = (i == I ? 1.0 : zi[i] / rho);
         }
         return diS3;
@@ -151,7 +151,7 @@ public:
     double *getdiS4()
     {
         double alpha = 0.0;
-        for (int i = 0; i < nNodes; i++) {
+        for (unsigned int i = 0; i < nNodes; i++) {
             if (i == I) {
                 diS4[i] = 0.0;
             } else {
@@ -164,7 +164,7 @@ public:
     double *getdiS5()
     {
         double alpha = 0.0;
-        for (int i = 0; i < nNodes; i++) {
+        for (unsigned int i = 0; i < nNodes; i++) {
             if (i == I) {
                 diS5[i] = 1.0;
             } else {
@@ -183,24 +183,24 @@ public:
         return diS5;
     }
     void computezi(){
-        for (int i = 0; i < nNodes; i++) {
+        for (unsigned int i = 0; i < nNodes; i++) {
             zi[i] = rho * diMean[i] - lagrangeMultipliers[i] - (I == i ? localCost : 0.0);
             printf("zi[%d]/rho: %.3ff; ", i, zi[i] / rho);
             printf("zi[%d]: %.3f\n", i, zi[i]);
         }
     }
     void computeNextLagrangeMultipliers(){
-        for(int i = 0; i < nNodes; i++){
+        for (unsigned int i = 0; i < nNodes; i++){
             lagrangeMultipliers[i] += rho * (di[i] - diMean[i]);
         }
     }
     void initLagrangeMultipliers(){
-        for(int i = 0; i < nNodes; i++){
+        for (unsigned int i = 0; i < nNodes; i++){
             lagrangeMultipliers[i] = 0.0;
         }
     }
     void updateDiMean(double newDi[]){
-        for(int i = 0; i < nNodes; i++){
+        for (unsigned int i = 0; i < nNodes; i++){
             if (diCount == 0)
                 diMean[i] = newDi[i];
             else
@@ -209,7 +209,7 @@ public:
         diCount++;
         if (diCount == nNodes) {
             setState(CONSENSUS_STATE_WAITING_CONSENSUS);
-            for (int i = 0; i < nNodes; i++)
+            for (unsigned int i = 0; i < nNodes; i++)
             {
                 diMean[i] /= (double) nNodes;
             }
@@ -217,7 +217,7 @@ public:
         }
     }
     void resetDiMean(){
-        for(int i = 0; i < nNodes; i++){
+        for (unsigned int i = 0; i < nNodes; i++){
             diMean[i] = 0.0;
         }
         diCount = 0;

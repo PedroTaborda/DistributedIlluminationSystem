@@ -1,7 +1,5 @@
 
-
-#include <iostream>
-
+#include <stdio.h>
 #include "consensus.hpp"
 
 
