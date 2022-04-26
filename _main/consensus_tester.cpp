@@ -4,7 +4,7 @@
 
 
 
-#ifndef CONSENSUS_TESTER
+#ifdef CONSENSUS_TESTER
 int main()
 #else
 int not_actually_main()
