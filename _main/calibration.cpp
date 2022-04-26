@@ -360,10 +360,14 @@ void Calibrator::resetWait() {
                                   -> long long int {((Calibrator*) instance)->endWait(); return 0;}, this, true);
 }
 
-float Calibrator::getGainId(signed char id) {
+double Calibrator::getGainId(signed char id) {
     if(id >= network.getNumberNodesNetwork())
         return -1.f;
     return staticGains[id];
+}
+
+double *Calibrator::getGains() {
+    return staticGains;
 }
 
 float Calibrator::getExternalLuminance() {
@@ -373,21 +377,21 @@ float Calibrator::getExternalLuminance() {
 void Calibrator::calibrateGainId(signed char id) {
     // Wait for first measurement steady-state
     delay(STEADY_STATE_WAIT_MS);
-    float firstDutyVoltage = measureVoltage(CALIBRATION_VOLTAGE_SAMPLES);
+    double firstDutyVoltage = measureVoltage(CALIBRATION_VOLTAGE_SAMPLES);
     // Give some slack after the measurements in order to allow for
     // some slight delays causing desynchronization.
     delay(SYNCRONIZATION_WAIT_MS);
 
     // Wait for second measurement steady-state
     delay(STEADY_STATE_WAIT_MS);
-    float secondDutyVoltage = measureVoltage(CALIBRATION_VOLTAGE_SAMPLES);
+    double secondDutyVoltage = measureVoltage(CALIBRATION_VOLTAGE_SAMPLES);
     // Give some slack after the measurements in order to allow for
     // some slight delays causing desynchronization.
     delay(SYNCRONIZATION_WAIT_MS);
 
     // Determine the corresponding luminances
-    float firstDutyLuminance = LDRVoltageToLux(firstDutyVoltage);
-    float secondDutyLuminance = LDRVoltageToLux(secondDutyVoltage);
+    double firstDutyLuminance = LDRVoltageToLux(firstDutyVoltage);
+    double secondDutyLuminance = LDRVoltageToLux(secondDutyVoltage);
 
     // Determine the static gain
     staticGains[id] = (secondDutyLuminance - firstDutyLuminance) / \
@@ -400,7 +404,7 @@ void Calibrator::selfCalibrate(signed char selfId) {
     set_u(FIRST_DUTY_CALIBRATION);
     // Wait for first measurement steady-state
     delay(STEADY_STATE_WAIT_MS);
-    float firstDutyVoltage = measureVoltage(CALIBRATION_VOLTAGE_SAMPLES);
+    double firstDutyVoltage = measureVoltage(CALIBRATION_VOLTAGE_SAMPLES);
 
     // Give some slack after the measurements in order to allow for
     // some slight delays causing desynchronization.
@@ -411,11 +415,11 @@ void Calibrator::selfCalibrate(signed char selfId) {
     set_u(SECOND_DUTY_CALIBRATION);
     // Wait for second measurement steady-state
     delay(STEADY_STATE_WAIT_MS);
-    float secondDutyVoltage = measureVoltage(CALIBRATION_VOLTAGE_SAMPLES);
+    double secondDutyVoltage = measureVoltage(CALIBRATION_VOLTAGE_SAMPLES);
 
     // Determine the corresponding luminances
-    float firstDutyLuminance = LDRVoltageToLux(firstDutyVoltage);
-    float secondDutyLuminance = LDRVoltageToLux(secondDutyVoltage);
+    double firstDutyLuminance = LDRVoltageToLux(firstDutyVoltage);
+    double secondDutyLuminance = LDRVoltageToLux(secondDutyVoltage);
 
     // Determine the static gain
     staticGains[selfId] = (secondDutyLuminance - firstDutyLuminance) / \

@@ -1,5 +1,7 @@
+#include "buffer.hpp"
 #include "calibration.hpp"
 #include "comms.hpp"
+#include "consensus.hpp"
 #include "globals.hpp"
 #include "network.hpp"
 #include "parser.hpp"
@@ -130,9 +132,8 @@ void Comms::calibrateNetwork() volatile{
         Wire.write(MSG_TYPE_END_CALIBRATION);,
     ret)
 
-    calibrator.endCalibration();
-    Serial.printf("Calibrated %d luminaires.\n", network.getNumberNodesNetwork());
-    Serial.printf("Calibration complete.\n");
+    DEBUG_PRINT("Calibrated %d luminaires.\n", network.getNumberNodesNetwork())
+    DEBUG_PRINT("Calibration complete.\n")
 }
 
 ProcessingResult Comms::processCommand(const char *command) volatile
@@ -152,6 +153,7 @@ ProcessingResult Comms::processCommand(const char *command) volatile
     const char *strippedCommand = command;//= parser.strip(command);
     // Serial.printf("Sending command: '%s'\n", strippedCommand);
     Wire.beginTransmission(luminaireID + addr_offset);
+    DEBUG_PRINT("Sending MSG_TYPE_COMMAND")
     Wire.write(MSG_TYPE_COMMAND);
     while (*strippedCommand)
     {
@@ -184,17 +186,22 @@ void Comms::onReceive(int signed bytesReceived) volatile
         return;
     }
 
-    receivedMsgType = msgType;
+    receivedMsgTypeBuffer.insert(msgType);
     receivedDataSize = 0;
-    receivedData[0] = '\0';
-    if (bytesReceived == 1)
+    receivedMsgDataBuffer[dataBufferHead][0] = '\0';
+    if (bytesReceived == 1) {
+        dataBufferHead = (dataBufferHead + 1) % 50;
+        dataBufferItems = min(50, dataBufferItems + 1);
         return;
+    }
     
     for (int buf_idx = 0; buf_idx < bytesReceived - 1; buf_idx++)
     {
-        receivedData[buf_idx] = (uint8_t)Wire1.read();
+        receivedMsgDataBuffer[dataBufferHead][buf_idx] = (uint8_t)Wire1.read();
     }
-    receivedData[bytesReceived - 1] = '\0';
+    receivedMsgDataBuffer[dataBufferHead][bytesReceived - 1] = '\0';
+    dataBufferHead = (dataBufferHead + 1) % 50;
+    dataBufferItems = min(50, dataBufferItems + 1);
     receivedDataSize = bytesReceived - 1;
 }
 
@@ -212,10 +219,15 @@ void Comms::flushError() volatile{
 void Comms::processReceivedData() volatile
 {
     noInterrupts();
-    MSG_TYPE receivedMsg = receivedMsgType;
-    receivedMsgType = MSG_TYPE_NONE;
-    uint8_t receivedDataBuffer[receivedDataBufferSize];
-    memcpy(receivedDataBuffer, (const uint8_t *)receivedData, receivedDataBufferSize);
+    MSG_TYPE receivedMsg; 
+    if(receivedMsgTypeBuffer.available())
+        receivedMsg = receivedMsgTypeBuffer.popEnd();
+    else
+        receivedMsg = MSG_TYPE_NONE;
+
+    volatile uint8_t *receivedDataBuffer;
+    if(dataBufferItems != 0)
+        receivedDataBuffer = receivedMsgDataBuffer[(dataBufferHead - dataBufferItems--) % 50];
     interrupts();
 
     if (receivedMsg == MSG_TYPE_NONE)
@@ -240,19 +252,23 @@ void Comms::processReceivedData() volatile
     case MSG_TYPE_REPLY:
     case MSG_TYPE_STREAM:
         Serial.printf("%s\n", receivedDataBuffer);
+        DEBUG_PRINT("Received MSG_TYPE_REPLY/STREAM\n")
         break; 
     // If a raw reply is coming my way, I will relay it exactly to the Serial interface.
     case MSG_TYPE_REPLY_RAW:
         Serial.printf("%s", receivedDataBuffer);
+        DEBUG_PRINT("Received MSG_TYPE_REPLY_RAW\n")
         break;
     case MSG_TYPE_BUFFER:
         Serial.printf(" %f,", *((float *)receivedDataBuffer));
         receivingBuffer = true;
+        DEBUG_PRINT("Received MSG_TYPE_BUFFER\n")
         break;
 
     case MSG_TYPE_BUFFER_END:
         Serial.printf(" %f\n", *((float *)receivedDataBuffer));
         receivingBuffer = false;
+        DEBUG_PRINT("Received MSG_TYPE_BUFFER_END\n")
         break;
 
     // In case someone has just woken up and I'm id=0, I'll see if we're waiting
@@ -303,9 +319,7 @@ void Comms::processReceivedData() volatile
 
     case MSG_TYPE_END_CALIBRATION:
         // The maestro ignores its own calls to calibrate
-        if(!calibrator.isMaestro()) {
-            calibrator.endCalibration();
-        }
+        calibrator.endCalibration();
         DEBUG_PRINT("Received MSG_TYPE_END_CALIBRATION\n")
         break;
     case MSG_TYPE_VERIFY_LIST:
@@ -325,9 +339,28 @@ void Comms::processReceivedData() volatile
         DEBUG_PRINT("Received MSG_TYPE_VERIFY_LIST_NACK\n")
         break;
     case MSG_TYPE_CONSENSUS_START:
+        DEBUG_PRINT("Received MSG_TYPE_CONSENSUS_START\n")
+        break;
     case MSG_TYPE_CONSENSUS_D:
+        DEBUG_PRINT("Received MSG_TYPE_CONSENSUS_D\n")
+        if(consensus.active()) {
+            double receivedD[MAX_DEVICES];
+            memcpy(receivedD, (const void*) receivedDataBuffer, sizeof(double) * network.getNumberNodesNetwork());
+            for(uint8_t i = 0; i < network.getNumberNodesNetwork(); i++) {
+                DEBUG_PRINT("d[%hhu] = %lf\n", i, receivedD[i])
+            }
+            consensus.updateDiMean(receivedD);
+        }
+        else
+            DEBUG_PRINT("Not running consensus\n")
+        break;
     case MSG_TYPE_CONSENSUS_CONVERGENCE:
-        #pragma messsage("implement me")
+        DEBUG_PRINT("Received MSG_TYPE_CONSENSUS_CONVERGENCE\n")
+        if(consensus.active()) {
+
+        }
+        else
+            DEBUG_PRINT("Not running consensus\n")
         break;
     default:
         DEBUG_PRINT("Message wasn't well read. Code %d\n", receivedMsg)

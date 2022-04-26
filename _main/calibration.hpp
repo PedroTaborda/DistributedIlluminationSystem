@@ -33,7 +33,8 @@ public:
     bool waiting();
     void resetWait();
 
-    float getGainId(signed char id);
+    double getGainId(signed char id);
+    double *getGains();
     float getExternalLuminance();
 
     void calibrateGainId(signed char id);
@@ -48,8 +49,8 @@ private:
     void endWait();
 
     signed char highestId;
-    float staticGains[MAX_DEVICES];
-    float externalLuminance;
+    double staticGains[MAX_DEVICES];
+    double externalLuminance;
 
     volatile bool isWaiting = true;
     bool maestro = false;

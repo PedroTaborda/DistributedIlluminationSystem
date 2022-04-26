@@ -1,9 +1,9 @@
 #ifndef CONSENSUS_HPP
 #define CONSENSUS_HPP
 
+#include "globals.hpp"
 #include "math_utils.hpp"
 
-inline constexpr unsigned int MAX_DEVICES = 16; // duplicated in calibration.hpp
 constexpr double TOL = 1e-4;
 
 constexpr double maxDutyCycle = 1.0;
@@ -22,7 +22,7 @@ public:
     void setState(ConsensusState state) {
         this->state = state;
     }
-    void start(unsigned int nNodes, int myI, double newLocalCost, double *gainsMeToAll){
+    void start(unsigned int nNodes, int myI, double newLocalCost, double *gainsMeToAll, double externalIlluminance){
         setState(CONSENSUS_STATE_COMPUTING_LOCAL);
         this->I = myI;
         this->nNodes = nNodes;
@@ -32,13 +32,30 @@ public:
             this->ki[i] = gainsMeToAll[i];
         }
         this->iteration = 0;
+        this->oi = externalIlluminance;
 
         initLagrangeMultipliers();
         resetDiMean();
     }
 
+    bool active() {
+        return state != CONSENSUS_STATE_NOT_STARTED;
+    }
+
+    void setIlluminanceReference(double lumminanceReference) {
+        if(li != lumminanceReference) {
+            li = lumminanceReference;
+            setState(CONSENSUS_STATE_COMPUTING_LOCAL);
+        }
+    }
+
+    void setLocalCost(double cost) {
+        localCost = cost;
+    }
+
     double *optimumSolution()
     {
+        setState(CONSENSUS_STATE_WAITING_FOR_NEIGHBORS);
         computezi();
 
         sol = argming();
@@ -48,7 +65,7 @@ public:
             {
                 di[i] = sol[i];
             }
-            printf("Best: g\n");
+            //printf("Best: g\n");
             return sol;
         }
 
@@ -70,8 +87,8 @@ public:
         for (unsigned int i = 0; i < nNodes; i++) {
             di[i] = S[best][i];
         }
-        printf("Costs: %f, %f, %f, %f, %f\n", costs[0] > 100000 ? -1 : costs[0], costs[1] > 100000 ? -1 : costs[1], costs[2] > 100000 ? -1 : costs[2], costs[3] > 100000 ? -1 : costs[3], costs[4] > 100000 ? -1 : costs[4]);
-        printf("Best: %d\n", best);
+        //printf("Costs: %f, %f, %f, %f, %f\n", costs[0] > 100000 ? -1 : costs[0], costs[1] > 100000 ? -1 : costs[1], costs[2] > 100000 ? -1 : costs[2], costs[3] > 100000 ? -1 : costs[3], costs[4] > 100000 ? -1 : costs[4]);
+        //printf("Best: %d\n", best);
         return S[best];
     }
 
@@ -81,7 +98,7 @@ public:
     unsigned int iteration = 0;
 
     double li = 16.0;
-    double oi = 10.0;
+    double oi;
     double localCost = 1.0;
     double ki[MAX_DEVICES]; // staticGains (calibration.hpp)
     double rho = 100.0;
@@ -235,5 +252,7 @@ public:
         return feasible;
     }
 };
+
+extern ConsensusSolver consensus;
 
 #endif //CONSENSUS_HPP

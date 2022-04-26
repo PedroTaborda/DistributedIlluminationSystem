@@ -18,6 +18,11 @@ struct luminaireParams{
     float tauDescending[tauN];
 };
 
+union DoubleFloat{
+    double value;
+    uint8_t bytePack[sizeof(double)];
+};
+
 // Constant values for configuring the micro controller
 inline constexpr int BAUD_RATE = 115200;
 inline constexpr int DAC_RANGE = 4096;

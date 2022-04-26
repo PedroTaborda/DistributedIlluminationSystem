@@ -4,7 +4,11 @@
 
 
 
+#ifndef DEBUG
 int main()
+#else
+int not_actually_main()
+#endif
 {
     ConsensusSolver solver1, solver2;
 
@@ -21,10 +25,10 @@ int main()
     solver2.oi = 50;
     solver2.rho = 7.0;
 
-    solver1.start(nNodes, 0, localCost1, gainsOthersToMe1);
-    solver2.start(nNodes, 1, localCost2, gainsOthersToMe2);
+    solver1.start(nNodes, 0, localCost1, gainsOthersToMe1, 50);
+    solver2.start(nNodes, 1, localCost2, gainsOthersToMe2, 50);
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 15; i++) {
         printf("Iteration %d\n", i);
         double *sol1 = solver1.optimumSolution();
         double *sol2 = solver2.optimumSolution();
@@ -44,4 +48,6 @@ int main()
         solver1.finishIter();
         solver2.finishIter();
     }
+
+    return 0;
 }

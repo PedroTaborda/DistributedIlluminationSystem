@@ -1,6 +1,10 @@
 #ifndef BUFFER_HPP
 #define BUFFER_HPP
 
+#include <algorithm>
+
+enum MSG_TYPE: unsigned char;
+
 template <typename T, int SIZE>
 // indexing starts at 1
 class Buffer {
@@ -15,7 +19,7 @@ class Buffer {
     void insert(T value) volatile {
         buffer[currentHead] = value;
         currentHead = (currentHead + 1) % SIZE;
-        items = min(SIZE, items + 1);
+        items = std::min(SIZE, items + 1);
     }
 
     T getBegin(int index) volatile { return buffer[(currentHead - index) % SIZE]; }
@@ -25,11 +29,18 @@ class Buffer {
     // number of available items
     int available() volatile { return items; }
 
-    // T getEnd(int offset) volatile { return buffer[(currentHead - items + offset - 1) % SIZE]; }
+    T popEnd() volatile {
+        return buffer[(currentHead - items--) % SIZE];
+    }
 
     int getCurrentHead() volatile { return currentHead; }
 
     volatile T* _getBufferLocation() volatile { return buffer; }
+
+    void _incrementItemCount() volatile {
+        currentHead = (currentHead + 1) % SIZE;
+        items = std::min(SIZE, items + 1);
+    }
 
    private:
     int currentHead, items;
