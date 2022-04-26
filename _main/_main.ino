@@ -181,6 +181,7 @@ void loop() {
             }
             SEND_MSG(0, CONSENSUS_RETRY_TIMEOUT_MS,
                 Wire.write(MSG_TYPE_CONSENSUS_D);
+                Wire.write((byte) consensus.iteration);
                 Wire.write((uint8_t*)sol, sizeof(double) * network.getNumberNodesNetwork());,
             ret)
 

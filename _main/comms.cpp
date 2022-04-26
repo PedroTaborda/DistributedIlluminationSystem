@@ -442,7 +442,8 @@ void Comms::processReceivedData() volatile
         break;
     case MSG_TYPE_CONSENSUS_D:
         DEBUG_PRINT("Received MSG_TYPE_CONSENSUS_D\n")
-        if(consensus.active() && consensus.notReceived(receivedDataBuffer[0])) {
+        byte msg_iter_byte = receivedDataBuffer[1]; // only receives LSB of iteration number
+        if(consensus.active() && consensus.notReceived(receivedDataBuffer[0]) && msg_iter_byte == (byte)consensus.iteration) {
             double receivedD[MAX_DEVICES];
             memcpy(receivedD, (const void*) (receivedDataBuffer + 1), sizeof(double) * network.getNumberNodesNetwork());
             for(uint8_t i = 0; i < network.getNumberNodesNetwork(); i++) {
@@ -460,6 +461,7 @@ void Comms::processReceivedData() volatile
             consensus.state == CONSENSUS_STATE_NOT_STARTED)) {
             SEND_MSG(0, RETRY_TIMEOUT_MS,
                 Wire.write(MSG_TYPE_CONSENSUS_D);
+                Wire.write((byte) consensus.iteration);
                 Wire.write((uint8_t*)consensus.di, sizeof(double) * network.getNumberNodesNetwork());,
             ret)
         }

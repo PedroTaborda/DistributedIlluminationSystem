@@ -16,7 +16,7 @@ int not_actually_main()
     double localCost3 = 1;
     double gainsOthersToMe1[3] = {200.0, 50.0, 50.0};
     double gainsOthersToMe2[3] = {50.0, 200.0, 50.0};
-    double gainsOthersToMe3[3] = {50.0, 50.0, 200.0};
+    double gainsOthersToMe3[3] = {50.0, 30.0, 200.0};
     solver1.li = 100;
     solver1.oi = 20;
     solver1.rho = 7.0;
