@@ -80,7 +80,7 @@ CommandParser parser(
     {'s', "", "stream variable", NULL, (Command[]){
         {'l', "", "measured lumminance", noArgCom([](){streamLuminance = !streamLuminance; ACK}), NULL},
         {'d', "", "duty cycle", noArgCom([](){streamDuty = !streamDuty; ACK}), NULL},
-        {'j', "", "sample time", noArgCom([](){streamSampleTime = !streamSampleTime; ACK}), NULL},
+        {'T', "", "sample time", noArgCom([](){streamSampleTime = !streamSampleTime; ACK}), NULL},
         {'i', "", "integral error", noArgCom([](){streamIntegralError = !streamIntegralError; ACK}), NULL},
         {'t', "", "tracking error", noArgCom([](){streamTrackingError = !streamTrackingError; ACK}), NULL},
         {'s', "", "simulator", noArgCom([](){streamSimulator = !streamSimulator; ACK}), NULL},
