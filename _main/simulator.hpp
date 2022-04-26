@@ -1,6 +1,8 @@
 #ifndef SIMULATOR_HPP
 #define SIMULATOR_HPP
 
+#include <stdint.h>
+
 // Simulates the system's response to a step change in duty cycle at the LED.
 class Simulator {
 public:

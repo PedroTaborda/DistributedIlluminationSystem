@@ -2,6 +2,7 @@
 #define CONTROLLER_HPP
 
 #include <Arduino.h>
+#include <stdint.h>
 
 //  #include <utility> idk why this was here
 
