@@ -21,17 +21,17 @@ int not_actually_main()
     solver1.oi = 20;
     solver1.rho = 7.0;
 
-    solver2.li = 0;
+    solver2.li = 1;
     solver2.oi = 30;
     solver2.rho = 7.0;
 
-    solver3.li = 0;
+    solver3.li = 1;
     solver3.oi = 40;
     solver3.rho = 7.0;
 
-    solver1.start(nNodes, 0, localCost1, gainsOthersToMe1, 50);
-    solver2.start(nNodes, 1, localCost2, gainsOthersToMe2, 50);
-    solver3.start(nNodes, 2, localCost3, gainsOthersToMe3, 50);
+    solver1.start(nNodes, 0, localCost1, gainsOthersToMe1, 20);
+    solver2.start(nNodes, 1, localCost2, gainsOthersToMe2, 30);
+    solver3.start(nNodes, 2, localCost3, gainsOthersToMe3, 40);
 
     for (int i = 0; i < 20; i++)
     {

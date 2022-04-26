@@ -96,6 +96,14 @@ CommandParser parser(
 
 volatile Comms comms(parser);
 
+double gains1[] = {200, 50, 50};
+double gains2[] = {50, 200, 50};
+double gains3[] = {50, 50, 200};
+
+double exter1 = 20;
+double exter2 = 30;
+double exter3 = 40;
+
 void setup() {
     analogReadResolution(12);
     analogWriteFreq(PWM_FREQUENCY);
@@ -119,8 +127,16 @@ void setup() {
         comms.calibrateNetwork();
     }
 
-    consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
-                    calibrator.getGains(), calibrator.getExternalLuminance());
+    if(myID == 0) {
+        consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
+                    gains1, exter1);
+    } else if(myID == 1) {
+        consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
+                    gains2, exter2);
+    } else if(myID == 2) {
+        consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
+                    gains3, exter3);
+    }
     controller.turnControllerOn();
 }
 
