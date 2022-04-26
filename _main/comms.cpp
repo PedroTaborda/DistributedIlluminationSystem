@@ -326,7 +326,7 @@ void Comms::processReceivedData() volatile
     case MSG_TYPE_CALIBRATE_ID:
         // The maestro ignores its own calls to calibrate
         if(!calibrator.isMaestro()) {
-            if(receivedDataBuffer[0] != my_id)
+            if(receivedDataBuffer[1] != my_id)
                 calibrator.calibrateGainId(receivedDataBuffer[1]);
             else
                 calibrator.selfCalibrate(my_id);

@@ -114,11 +114,11 @@ public:
     }
 
     bool notReceived(uint8_t ID) {
-        return !receivedDi[network.getNetwork()[ID]];
+        return !receivedDi[network.getIndexId(ID)];
     }
 
     void received(uint8_t ID) {
-        receivedDi[network.getNetwork()[ID]] = true;
+        receivedDi[network.getIndexId(ID)] = true;
     }
 
     void resetReceived() {

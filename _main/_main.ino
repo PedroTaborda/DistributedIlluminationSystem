@@ -117,9 +117,10 @@ void setup() {
     while(calibrator.waiting()) {
         comms.eventLoop(); // Run event loop to be able to reset wait whenever new nodes join the network
     }
-    DEBUG_PRINT("Done waiting. Calibration starting...\n")
-    if(comms.my_id == 0)
+    if(comms.my_id == 0) {
+        DEBUG_PRINT("Done waiting. Calibration starting...\n")
         comms.calibrateNetwork();
+    }
 
     consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
                     calibrator.getGains(), calibrator.getExternalLuminance());
@@ -178,11 +179,11 @@ void loop() {
             /*signed char address = addr_offset + network.getNetwork()[i];
             DEBUG_PRINT("Sending D to %hhd\n", address)
             long int t0 = millis();*/
+            for(uint8_t j = 0; j < network.getNumberNodesNetwork(); j++) {
+                DEBUG_PRINT("Local d[%hhu] = %lf\n", j, sol[j])
+            }
             SEND_MSG(0, CONSENSUS_RETRY_TIMEOUT_MS,
                 Wire.write(MSG_TYPE_CONSENSUS_D);
-                for(uint8_t j = 0; j < network.getNumberNodesNetwork(); j++) {
-                    DEBUG_PRINT("Local d[%hhu] = %lf\n", j, sol[j])
-                }
                 Wire.write((uint8_t*)sol, sizeof(double) * network.getNumberNodesNetwork());,
             ret)
 
