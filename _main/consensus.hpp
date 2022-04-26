@@ -1,8 +1,12 @@
 #ifndef CONSENSUS_HPP
 #define CONSENSUS_HPP
 
+#include <Wire.h>
+
+#include "comms.hpp"
 #include "globals.hpp"
 #include "math_utils.hpp"
+#include "network.hpp"
 
 constexpr double TOL = 1e-4;
 
@@ -23,10 +27,9 @@ public:
         this->state = state;
     }
     void start(unsigned int nNodes, int myI, double newLocalCost, double *gainsMeToAll, double externalIlluminance){
-        setState(CONSENSUS_STATE_COMPUTING_LOCAL);
+        setState(CONSENSUS_STATE_NOT_STARTED);
         this->I = myI;
         this->nNodes = nNodes;
-        this->state = CONSENSUS_STATE_COMPUTING_LOCAL;
         for (unsigned int i = 0; i < nNodes; i++) {
             this->localCost = newLocalCost;
             this->ki[i] = gainsMeToAll[i];
@@ -46,6 +49,21 @@ public:
         if(li != lumminanceReference) {
             li = lumminanceReference;
             setState(CONSENSUS_STATE_COMPUTING_LOCAL);
+
+            for(uint8_t i = 0; i < network.getNumberNodesNetwork(); i++)
+            {
+                if(network.getNetwork()[i] == myID) continue;
+                signed char address = addr_offset + network.getNetwork()[i];
+                int ret;
+                SEND_MSG(address, RETRY_TIMEOUT_MS,
+                    Wire.write(MSG_TYPE_CONSENSUS_START);,
+                ret)
+            }
+
+            resetDiMean();
+            resetDi();
+            resetIteration();
+            initLagrangeMultipliers();
         }
     }
 
@@ -97,11 +115,11 @@ public:
     unsigned int I = 0; // index of this node
     unsigned int iteration = 0;
 
-    double li = 16.0;
+    double li = 1.0f;
     double oi;
     double localCost = 1.0;
     double ki[MAX_DEVICES]; // staticGains (calibration.hpp)
-    double rho = 100.0;
+    double rho = 7.0;
 
     double lagrangeMultipliers[MAX_DEVICES];
     double currentSolution[MAX_DEVICES];
@@ -109,6 +127,7 @@ public:
     double di[MAX_DEVICES];
 
     double diMean[MAX_DEVICES];
+    double _diMean[MAX_DEVICES];
     double diCount = 0; // stored as double to avoid integer division - valid up to values much larger than MAX_DEVICES
 
     double zi[MAX_DEVICES];
@@ -126,7 +145,17 @@ public:
         computeNextLagrangeMultipliers();
         diCount = 0;
         iteration++;
+        DEBUG_PRINT("Iteration %d\n", iteration)
+        if(iteration < 4)
+            setState(CONSENSUS_STATE_COMPUTING_LOCAL);
+        else {
+            DEBUG_PRINT("Finished consensus.\n")
+            for(uint8_t i = 0; i < nNodes; i++)
+                DEBUG_PRINT("d[%hhu] = %lf\n", i, di[i])
+            setState(CONSENSUS_STATE_NOT_STARTED);
+        }
     }
+
     double fPlus(double *d){
         return isFeasible(d) ? costFunction(d) : __DBL_MAX__;
     }
@@ -219,25 +248,37 @@ public:
     void updateDiMean(double newDi[]){
         for (unsigned int i = 0; i < nNodes; i++){
             if (diCount == 0)
-                diMean[i] = newDi[i];
+                _diMean[i] = newDi[i];
             else
-                diMean[i] += newDi[i];
+                _diMean[i] += newDi[i];
         }
         diCount++;
         if (diCount == nNodes) {
             setState(CONSENSUS_STATE_WAITING_CONSENSUS);
             for (unsigned int i = 0; i < nNodes; i++)
             {
-                diMean[i] /= (double) nNodes;
+                _diMean[i] /= (double) nNodes;
+                diMean[i] = _diMean[i];
             }
             return;
         }
+        if(diCount > nNodes)
+            DEBUG_PRINT("\n\n\n\n\n Overflowing on the average. \n\n\n\n\n")
     }
     void resetDiMean(){
         for (unsigned int i = 0; i < nNodes; i++){
             diMean[i] = 0.0;
+            _diMean[i] = 0.0;
         }
         diCount = 0;
+    }
+    void resetDi(){
+        for (unsigned int i = 0; i < nNodes; i++){
+            di[i] = 0.0f;
+        }
+    }
+    void resetIteration() {
+        iteration = 0;
     }
     bool isFeasible(double diCandidate[])
     {

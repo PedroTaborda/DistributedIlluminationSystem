@@ -17,6 +17,7 @@ struct luminaireParams{
     float tauAscending[tauN];
     float tauDescending[tauN];
 };
+extern int myID;
 
 union DoubleFloat{
     double value;

@@ -1,5 +1,7 @@
 #include "network.hpp"
 
+#include <algorithm>
+
 void Network::addNodeToNetwork(signed char id) {
     DEBUG_PRINT("Attempting to add node with id %d\n", id)
     if(numberDevices == MAX_DEVICES)
@@ -10,6 +12,7 @@ void Network::addNodeToNetwork(signed char id) {
             return;
 
     deviceList[numberDevices++] = (uint8_t)id;
+    std::sort(deviceList, deviceList + numberDevices);
     DEBUG_PRINT("Added node with id %hhu. Network has %hhu nodes.\n", id, numberDevices)
 }
 

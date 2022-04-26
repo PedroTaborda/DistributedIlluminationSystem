@@ -9,8 +9,6 @@
 
 volatile Comms* _comms;
 
-extern int myID;
-
 bool receivingBuffer = false;
 
 void Comms::init() volatile
@@ -176,8 +174,11 @@ ProcessingResult Comms::processCommand(const char *command) volatile
 void Comms::onReceive(int signed bytesReceived) volatile
 {
     MSG_TYPE msgType = (MSG_TYPE) Wire1.read();
+    messageCounter += 1;
     //error = true;
     //sprintf(errorMsg, "Received %d bytes. Message type: %d\n", bytesReceived, msgType);
+
+    //DEBUG_PRINT("Received message %hhu with %d bytes", msgType, bytesReceived)
 
     if (bytesReceived + 1 > receivedDataBufferSize)
     {
@@ -190,8 +191,8 @@ void Comms::onReceive(int signed bytesReceived) volatile
     receivedDataSize = 0;
     receivedMsgDataBuffer[dataBufferHead][0] = '\0';
     if (bytesReceived == 1) {
-        dataBufferHead = (dataBufferHead + 1) % 50;
-        dataBufferItems = min(50, dataBufferItems + 1);
+        dataBufferHead = (MSG_BUFFER_SIZE + dataBufferHead + 1) % MSG_BUFFER_SIZE;
+        dataBufferItems = min(MSG_BUFFER_SIZE, dataBufferItems + 1);
         return;
     }
     
@@ -200,8 +201,8 @@ void Comms::onReceive(int signed bytesReceived) volatile
         receivedMsgDataBuffer[dataBufferHead][buf_idx] = (uint8_t)Wire1.read();
     }
     receivedMsgDataBuffer[dataBufferHead][bytesReceived - 1] = '\0';
-    dataBufferHead = (dataBufferHead + 1) % 50;
-    dataBufferItems = min(50, dataBufferItems + 1);
+    dataBufferHead = (MSG_BUFFER_SIZE + dataBufferHead + 1) % MSG_BUFFER_SIZE;
+    dataBufferItems = min(MSG_BUFFER_SIZE, dataBufferItems + 1);
     receivedDataSize = bytesReceived - 1;
 }
 
@@ -227,11 +228,14 @@ void Comms::processReceivedData() volatile
 
     volatile uint8_t *receivedDataBuffer;
     if(dataBufferItems != 0)
-        receivedDataBuffer = receivedMsgDataBuffer[(dataBufferHead - dataBufferItems--) % 50];
+        receivedDataBuffer = receivedMsgDataBuffer[(MSG_BUFFER_SIZE + dataBufferHead - dataBufferItems--) % MSG_BUFFER_SIZE];
     interrupts();
 
     if (receivedMsg == MSG_TYPE_NONE)
         return;
+
+    processedMessageCounter += 1;
+    DEBUG_PRINT("Received message = %li, Processeced received message = %li\n", messageCounter, processedMessageCounter)
 
     int ret;
     char *commandRet = NULL;
@@ -339,6 +343,11 @@ void Comms::processReceivedData() volatile
         DEBUG_PRINT("Received MSG_TYPE_VERIFY_LIST_NACK\n")
         break;
     case MSG_TYPE_CONSENSUS_START:
+        consensus.setState(CONSENSUS_STATE_COMPUTING_LOCAL);
+        consensus.resetDiMean();
+        consensus.resetDi();
+        consensus.resetIteration();
+        consensus.initLagrangeMultipliers();
         DEBUG_PRINT("Received MSG_TYPE_CONSENSUS_START\n")
         break;
     case MSG_TYPE_CONSENSUS_D:
@@ -363,7 +372,7 @@ void Comms::processReceivedData() volatile
             DEBUG_PRINT("Not running consensus\n")
         break;
     default:
-        DEBUG_PRINT("Message wasn't well read. Code %d\n", receivedMsg)
+        DEBUG_PRINT("===========Message wasn't well read. Code %d===========\n", receivedMsg)
         break;
     }
 }

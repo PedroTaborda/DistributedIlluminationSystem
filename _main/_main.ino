@@ -90,23 +90,18 @@ CommandParser parser(
     {'t', "", "time", printfCom("t %d %lu\n", myID, millis()), NULL},
     {'U', "<float>", "sets the unoccupied lower bound lumminance", notImplemented, NULL},
     {'w', "<int>", "sets the feedforward state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setFeedforward(val); ACK}), NULL},
-
+    {'z', "<float>", "sets the consensus reference on node", floatArgCom([](float reference){consensus.setIlluminanceReference(reference); ACK}), NULL},
     {'\0', "", "", NULL, NULL}
 }
 );
 
 volatile Comms comms(parser);
 
-double gains1[] = {200.0, 50.0, 50.0};
-double gains2[] = {50.0, 200.0, 50.0};
-double gains3[] = {50.0, 50.0, 200.0};
-
 void setup() {
     analogReadResolution(12);
     analogWriteFreq(PWM_FREQUENCY);
     analogWriteRange(DAC_RANGE);
     loadParamsStartup();
-    //calibrateGain(); // This is only necessary for the first time calibration (to allow for tau/gamma calibration)
     // Initialize Serial protocol
     Serial.begin(BAUD_RATE);
     while(!Serial);
@@ -124,24 +119,8 @@ void setup() {
     if(comms.my_id == 0)
         comms.calibrateNetwork();
 
-    if(myID == 0) {
-        consensus.li = 80;
-        consensus.rho = 7.0;
-        consensus.start(3, 0,
-                    1, gains1, 50.0);
-    }
-    else if(myID == 1) {
-        consensus.li = 270;
-        consensus.rho = 7.0;
-        consensus.start(3, 1,
-                    1, gains2, 50.0);
-    }
-    else {
-        consensus.li = 90;
-        consensus.rho = 7.0;
-        consensus.start(3, 2,
-                    1, gains3, 50.0);
-    }
+    consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
+                    calibrator.getGains(), calibrator.getExternalLuminance());
     controller.turnControllerOn();
 }
 
@@ -170,12 +149,12 @@ void loop() {
     if(consensus.active()) {
         if(consensus.state == CONSENSUS_STATE_COMPUTING_LOCAL) {
             double *sol = consensus.optimumSolution();
-            DoubleFloat aux;
+            consensus.updateDiMean(sol);
             for(uint8_t i = 0; i < network.getNumberNodesNetwork(); i++) {
                 if(network.getNetwork()[i] == myID) continue;
                 signed char address = addr_offset + network.getNetwork()[i];
                 DEBUG_PRINT("Sending D to %hhd\n", address)
-                SEND_MSG(address, RETRY_TIMEOUT_MS,
+                SEND_MSG(address, CONSENSUS_RETRY_TIMEOUT_MS,
                     Wire.write(MSG_TYPE_CONSENSUS_D);
                     for(uint8_t j = 0; j < network.getNumberNodesNetwork(); j++) {
                         DEBUG_PRINT("Local d[%hhu] = %lf\n", j, sol[j])
@@ -183,6 +162,9 @@ void loop() {
                     Wire.write((uint8_t*)sol, sizeof(double) * network.getNumberNodesNetwork());,
                 ret)
             }
+        }
+        else if(consensus.state == CONSENSUS_STATE_WAITING_CONSENSUS) {
+            consensus.finishIter();
         }
     }
 }

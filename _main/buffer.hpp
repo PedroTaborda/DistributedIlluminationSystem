@@ -22,15 +22,15 @@ class Buffer {
         items = std::min(SIZE, items + 1);
     }
 
-    T getBegin(int index) volatile { return buffer[(currentHead - index) % SIZE]; }
+    T getBegin(int index) volatile { return buffer[(SIZE + currentHead - index) % SIZE]; }
 
-    T indexFromCustomHead(int index, int customHead) volatile { return buffer[(customHead + index) % SIZE]; }
+    T indexFromCustomHead(int index, int customHead) volatile { return buffer[(SIZE + customHead + index) % SIZE]; }
 
     // number of available items
     int available() volatile { return items; }
 
     T popEnd() volatile {
-        return buffer[(currentHead - items--) % SIZE];
+        return buffer[(SIZE + currentHead - items--) % SIZE];
     }
 
     int getCurrentHead() volatile { return currentHead; }

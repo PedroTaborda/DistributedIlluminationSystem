@@ -1,6 +1,7 @@
 #ifndef COMMS_HPP
 #define COMMS_HPP
 
+#include "buffer.hpp"
 #include "parser.hpp"
 #include <Arduino.h>
 
@@ -11,8 +12,10 @@
         {                                                       \
             Wire.beginTransmission(addr);                       \
             WRITE_STATEMENTS                                    \
-            ret = Wire.endTransmission(timeout_ms);             \
-        } while ((ret == 4) && ((millis() - t0) < timeout_ms)); \
+            ret = Wire.endTransmission(true);                   \
+        } while ((ret) && ((millis() - t0) < timeout_ms));      \
+        if((millis() - t0) >= timeout_ms)                       \
+            DEBUG_PRINT("===========TIMEOUT===========\n")      \
     }
 
 #ifdef ZE
@@ -77,6 +80,7 @@ enum ProcessingResult
 };
 
 inline constexpr int receivedDataBufferSize = 64; // to be put in a central place
+inline constexpr int MSG_BUFFER_SIZE = 40;
 inline constexpr unsigned long TIMEOUT_MS = 20;
 inline constexpr unsigned int RETRY_MULTIPLIER = 10;
 inline constexpr unsigned long RETRY_TIMEOUT_MS = RETRY_MULTIPLIER * TIMEOUT_MS;
@@ -110,9 +114,10 @@ public:
 
 private:
     uint8_t receivedDataSize = 0;
-    uint8_t receivedMsgDataBuffer[50][receivedDataBufferSize];
+    uint8_t receivedMsgDataBuffer[MSG_BUFFER_SIZE][receivedDataBufferSize];
     int8_t dataBufferHead = 0, dataBufferItems = 0;
-    Buffer<MSG_TYPE, 50> receivedMsgTypeBuffer;
+    Buffer<MSG_TYPE, MSG_BUFFER_SIZE> receivedMsgTypeBuffer;
+    long int messageCounter = 0, processedMessageCounter = 0;
 
     bool error = false;
     char errorMsg[100];
