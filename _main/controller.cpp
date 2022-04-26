@@ -13,7 +13,7 @@ void Controller::setup(float proportionalGain, float integralGain) volatile {
     this->integralGain = integralGain;
 
     integralError = 0.f;
-    samplingTime = 0.01;
+    samplingPeriod = 0.01;
     antiWindup = true;
     feedback = true;
     feedforward = true;
@@ -28,7 +28,6 @@ void Controller::setup(float proportionalGain, float integralGain) volatile {
     occupancy = 0;
     occupancy_req = 0;
 
-    lastTimestamp = micros();
     energy = 0;
     visibilityAccumulator = 0;
     flickerAccumulator = 0;
@@ -41,7 +40,7 @@ void Controller::setup(float proportionalGain, float integralGain) volatile {
     sampleNumber = 0;
     simulator.initialize(micros(), measureVoltage(10), dutyCycle);
 
-    int64_t delayUs = (int64_t)(samplingTime * 1e6);
+    int64_t delayUs = (int64_t)(samplingPeriod * 1e6);
 
     alarm_pool_add_repeating_timer_us(core1AlarmPool, -delayUs, Controller::controllerLoop, (void *)this, &timerStruct);
 }
@@ -49,15 +48,14 @@ void Controller::setup(float proportionalGain, float integralGain) volatile {
 bool Controller::controllerLoop(repeating_timer *timerStruct) {
     /* must be static because repeating timer callbacks can only have one argument */
     volatile Controller *controller = (volatile Controller *)timerStruct->user_data;
-    unsigned long t;
+    uint64_t t;
     controller->handle_requests();
 
     // just to avoid typing everytime
     float reference = controller->reference[controller->occupancy];
 
-    t = micros();
-    controller->sampleDuration = (t - controller->lastTimestamp);
-    controller->lastTimestamp = t;
+    t = time_us_64();
+    controller->sampleInstant = t;
 
     // Measure the current luminance value and get the current simulator prediction
     float voltage = measureVoltage(5);
@@ -85,7 +83,7 @@ bool Controller::controllerLoop(repeating_timer *timerStruct) {
             // Compute proportional and integral terms
             proportionalTerm = controller->proportionalGain * controller->trackingError;
 
-            controller->integralError += controller->samplingTime * controller->trackingError;
+            controller->integralError += controller->samplingPeriod * controller->trackingError;
             integralTerm = controller->integralGain * controller->integralError;
 
             feedbackTerm = proportionalTerm + integralTerm;
@@ -142,7 +140,7 @@ void Controller::update_outputs() volatile {
     sample_t newsample;
     sampleNumber += 1;
 
-    newsample.dur = sampleDuration;
+    newsample.time = sampleInstant;
     newsample.L = currentLux;
     newsample.IntegralError = integralError;
     newsample.TrackingError = trackingError;
@@ -152,7 +150,7 @@ void Controller::update_outputs() volatile {
 
     latest_sample.insert(newsample);
 
-    energy += dutyCycle * samplingTime;
+    energy += dutyCycle * samplingPeriod;
     energy_out = (float)energy;
 
     visibilityAccumulator += max(0, reference[occupancy] - currentLux);
@@ -161,7 +159,7 @@ void Controller::update_outputs() volatile {
     double currentFlicker = currentLux - previousLux;
 
     if (currentFlicker * previousFlicker < 0) {
-        flickerAccumulator += (abs(currentFlicker) + abs(previousFlicker)) / (2 * samplingTime);
+        flickerAccumulator += (abs(currentFlicker) + abs(previousFlicker)) / (2 * samplingPeriod);
         flickerAccumulator_out = (float)flickerAccumulator;
     }
 
