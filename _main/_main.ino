@@ -22,14 +22,6 @@ double tauAscending[10], tauDescending[10];
 double luxAscending[10], luxDescending[10];
 
 
-bool streamLuminance = false;
-bool streamDuty = false;
-bool streamJitter = false;
-bool streamIntegralError = false;
-bool streamTrackingError = false;
-bool streamSimulator = false;
-bool streamReference = false;
-
 float outBuffer[outBufferSize];
 
 int outBuffer_i = outBufferSize;  // >= outBufferSize means no transfer to be done
@@ -84,8 +76,13 @@ CommandParser parser(
     {'r', "<float>", "sets the reference", floatArgCom([](float reference){if(reference < 0) ERR controller.setReference(reference); ACK}), NULL},
     {'R', "", "system reset", noArgCom([](){__NVIC_SystemReset(); ACK}), NULL},
     {'s', "", "stream variable", NULL, (Command[]){
-        {'l', "", "measured lumminance", notImplemented, NULL},
-        {'d', "", "duty cycle", notImplemented, NULL},
+        {'l', "", "measured lumminance", noArgCom([](){streamLuminance = !streamLuminance; ACK}), NULL},
+        {'d', "", "duty cycle", noArgCom([](){streamDuty = !streamDuty; ACK}), NULL},
+        {'j', "", "sample time", noArgCom([](){streamSampleTime = !streamSampleTime; ACK}), NULL},
+        {'i', "", "integral error", noArgCom([](){streamIntegralError = !streamIntegralError; ACK}), NULL},
+        {'t', "", "tracking error", noArgCom([](){streamTrackingError = !streamTrackingError; ACK}), NULL},
+        {'s', "", "simulator", noArgCom([](){streamSimulator = !streamSimulator; ACK}), NULL},
+        {'r', "", "reference", noArgCom([](){streamReference = !streamReference; ACK}), NULL},
         {'\0', "", "", NULL, NULL}}},
     {'t', "", "time", printfCom("t %d %lu\n", myID, millis()), NULL},
     {'U', "<float>", "sets the unoccupied lower bound lumminance", notImplemented, NULL},

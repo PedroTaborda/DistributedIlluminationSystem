@@ -94,6 +94,15 @@ typedef uint8_t messageData[receivedDataBufferSize];
 
 extern bool receivingBuffer;
 
+// flags for variable streaming
+extern bool streamLuminance;
+extern bool streamDuty;
+extern bool streamSampleTime;
+extern bool streamIntegralError;
+extern bool streamTrackingError;
+extern bool streamSimulator;
+extern bool streamReference;
+
 class Comms
 {
 public:
@@ -136,6 +145,10 @@ private:
 
     void startVerifyAckAlarm() volatile;
     void startRollCallAlarm() volatile;
+
+    void streamVars() volatile;
+    char streamVarsBuffer[MSG_BUFFER_SIZE];
+    int lastSampleStreamed = 0;
 };
 
 void parseSerial(volatile Comms& comms);
