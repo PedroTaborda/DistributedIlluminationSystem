@@ -4,6 +4,7 @@
 #include "math_utils.hpp"
 
 inline constexpr unsigned int MAX_DEVICES = 16; // duplicated in calibration.hpp
+constexpr double TOL = 1e-4;
 
 constexpr double maxDutyCycle = 1.0;
 constexpr double minDutyCycle = 0.0;
@@ -13,7 +14,7 @@ enum ConsensusState
     CONSENSUS_STATE_NOT_STARTED,
     CONSENSUS_STATE_COMPUTING_LOCAL,
     CONSENSUS_STATE_WAITING_FOR_NEIGHBORS,
-    CONSENSUS_STATE_PREPARE_NEXT_ITERATION
+    CONSENSUS_STATE_WAITING_CONSENSUS
 };
 
 class ConsensusSolver {
@@ -21,13 +22,13 @@ public:
     void setState(ConsensusState state) {
         this->state = state;
     }
-    void start(int nNodes, int myI, double *newCost, double *gainsMeToAll){
+    void start(int nNodes, int myI, double newLocalCost, double *gainsMeToAll){
         setState(CONSENSUS_STATE_COMPUTING_LOCAL);
         this->I = myI;
         this->nNodes = nNodes;
         this->state = CONSENSUS_STATE_COMPUTING_LOCAL;
         for (int i = 0; i < nNodes; i++) {
-            this->cost[i] = newCost[i];
+            this->localCost = newLocalCost;
             this->ki[i] = gainsMeToAll[i];
         }
         this->iteration = 0;
@@ -40,20 +41,22 @@ public:
     {
         computezi();
 
-        static double *sol = argming();
+        sol = argming();
 
-        printf("Di--[%d]: %f, %f\n", I, sol[0], sol[1]);
-        printf("isFeasible: %d\n", isFeasible(sol));
-
-        if (isFeasible(sol))
+        if (isFeasible(sol)){
+            for (int i = 0; i < nNodes; i++)
+            {
+                di[i] = sol[i];
+            }
+            printf("Best: g\n");
             return sol;
+        }
 
-        static double *S[5] = {
-            diS1(),
-            diS2(),
-            diS3(),
-            diS4(),
-            diS5()};
+        S[0] = getdiS1();
+        S[1] = getdiS2();
+        S[2] = getdiS3();
+        S[3] = getdiS4();
+        S[4] = getdiS5();
 
         double costs[5] = {
             fPlus(S[0]),
@@ -67,21 +70,21 @@ public:
         for (int i = 0; i < nNodes; i++) {
             di[i] = S[best][i];
         }
-
+        printf("Costs: %f, %f, %f, %f, %f\n", costs[0] > 100000 ? -1 : costs[0], costs[1] > 100000 ? -1 : costs[1], costs[2] > 100000 ? -1 : costs[2], costs[3] > 100000 ? -1 : costs[3], costs[4] > 100000 ? -1 : costs[4]);
+        printf("Best: %d\n", best);
         return S[best];
     }
 
-//private:
     ConsensusState state = CONSENSUS_STATE_NOT_STARTED;
     unsigned int nNodes = 1;
     int I = 0; // index of this node
     int iteration = 0;
 
-    double li = 1.0;
-    double oi = 1.0;
+    double li = 16.0;
+    double oi = 10.0;
     double localCost = 1.0;
     double ki[MAX_DEVICES]; // staticGains (calibration.hpp)
-    double rho = 1.0;
+    double rho = 100.0;
 
     double lagrangeMultipliers[MAX_DEVICES];
     double currentSolution[MAX_DEVICES];
@@ -92,8 +95,15 @@ public:
     double diCount = 0; // stored as double to avoid integer division - valid up to values much larger than MAX_DEVICES
 
     double zi[MAX_DEVICES];
+    double diGlobalMin[MAX_DEVICES];
 
-    double cost[MAX_DEVICES];
+    double diS1[MAX_DEVICES];
+    double diS2[MAX_DEVICES];
+    double diS3[MAX_DEVICES];
+    double diS4[MAX_DEVICES];
+    double diS5[MAX_DEVICES];
+    double *S[5];
+    double *sol;
 
     void finishIter(){
         computeNextLagrangeMultipliers();
@@ -104,67 +114,79 @@ public:
         return isFeasible(d) ? costFunction(d) : __DBL_MAX__;
     }
     double costFunction(double *d){
-        return dot(nNodes, d, cost);
+        return 0.5*rho*dot(nNodes, d, d) - dot(nNodes, d, zi);
     }
+    
     double *argming(){
         // g(di) = 0.5 rho di'*di - di'*zi (quadratic cost)
-        static double diGlobalMin[MAX_DEVICES];
         for (int i = 0; i < nNodes; i++) {
             diGlobalMin[i] = zi[i]/rho;
         }
         return diGlobalMin;
     }
-    double *diS1(){
-        static double diS1[MAX_DEVICES];
+    
+    double *getdiS1(){
         for (int i = 0; i < nNodes; i++) {
             diS1[i] = zi[i]/rho - ki[i] * (oi-li+ dot(nNodes, ki, zi)/rho) / dot(nNodes, ki, ki);
         }
         return diS1;
     }
-    double *diS2(){
-        static double diS2[MAX_DEVICES];
+    
+    double *getdiS2()
+    {
         for (int i = 0; i < nNodes; i++) {
             diS2[i] = (i==I ? 0.0 : zi[i]/rho ) ;
         }
         return diS2;
     }
-    double *diS3(){
-        static double diS3[MAX_DEVICES];
+    
+    double *getdiS3()
+    {
         for (int i = 0; i < nNodes; i++) {
             diS3[i] = (i == I ? 1.0 : zi[i] / rho);
         }
         return diS3;
     }
-    double *diS4(){
-        static double diS4[MAX_DEVICES];
+    
+    double *getdiS4()
+    {
         double alpha = 0.0;
         for (int i = 0; i < nNodes; i++) {
             if (i == I) {
                 diS4[i] = 0.0;
             } else {
                 alpha = ki[i]/(dot(nNodes, ki, ki) - ki[I] * ki[I]);
-                diS4[i] = zi[i] / rho - alpha * (oi - li - (dot(nNodes, ki, zi) + ki[I]*zi[I]) / rho);
+                diS4[i] = zi[i] / rho - alpha * (oi - li + ( - dot(nNodes, ki, zi) + ki[I]*zi[I]) / rho);
             }
         }
         return diS4;
     }
-    double *diS5(){
-        static double diS5[MAX_DEVICES];
+    double *getdiS5()
+    {
         double alpha = 0.0;
         for (int i = 0; i < nNodes; i++) {
             if (i == I) {
                 diS5[i] = 1.0;
             } else {
                 alpha = ki[i] / (dot(nNodes, ki, ki) - ki[I] * ki[I]);
-                diS5[i] = zi[i] / rho - alpha * (oi - li + ki[I] - (dot(nNodes, ki, zi) + ki[I] * zi[I]) / rho);
+                diS5[i] = zi[i] / rho - alpha * (oi - li + ki[I] + ( dot(nNodes, ki, zi) - ki[I] * zi[I]) / rho);
+                // printf("alpha: %f\n", alpha);
+                // printf("diS5[%d]: %f\n", i, diS5[i]);
+                // printf("zi/rho: %f\n", zi[i] / rho);
+                // printf("- dot(nNodes, ki, zi): %f\n", - dot(nNodes, ki, zi));
+                // printf("( - dot(nNodes, ki, zi) + ki[I] * zi[I]): %f\n", (-dot(nNodes, ki, zi) + ki[I] * zi[I]));
+                // printf("alpha * (oi - li + ki[I] + ( - dot(nNodes, ki, zi) + ki[I] * zi[I]) / rho): %f\n", alpha * (oi - li + ki[I] + (-dot(nNodes, ki, zi) + ki[I] * zi[I]) / rho));
+                // printf("oi-li: %f\n", oi - li);
+                // printf("ki[I]: %f\n", ki[I]);
             }
         }
         return diS5;
     }
     void computezi(){
         for (int i = 0; i < nNodes; i++) {
-            zi[i] = rho * diMean[i] - lagrangeMultipliers[i] - (I == i ? 0.0 : cost[i]);
-            printf("zi[%d]: %f\n", i, zi[i]);
+            zi[i] = rho * diMean[i] - lagrangeMultipliers[i] - (I == i ? localCost : 0.0);
+            printf("zi[%d]/rho: %.3ff; ", i, zi[i] / rho);
+            printf("zi[%d]: %.3f\n", i, zi[i]);
         }
     }
     void computeNextLagrangeMultipliers(){
@@ -174,18 +196,25 @@ public:
     }
     void initLagrangeMultipliers(){
         for(int i = 0; i < nNodes; i++){
-            lagrangeMultipliers[i] = 1.0;
+            lagrangeMultipliers[i] = 0.0;
         }
     }
     void updateDiMean(double newDi[]){
-        if (diCount == nNodes) {
-            setState(CONSENSUS_STATE_PREPARE_NEXT_ITERATION);
-            return;
-        }
         for(int i = 0; i < nNodes; i++){
-            diMean[i] = (diCount * diMean[i] + newDi[i]) / (diCount + 1.0);
+            if (diCount == 0)
+                diMean[i] = newDi[i];
+            else
+                diMean[i] += newDi[i];
         }
         diCount++;
+        if (diCount == nNodes) {
+            setState(CONSENSUS_STATE_WAITING_CONSENSUS);
+            for (int i = 0; i < nNodes; i++)
+            {
+                diMean[i] /= (double) nNodes;
+            }
+            return;
+        }
     }
     void resetDiMean(){
         for(int i = 0; i < nNodes; i++){
@@ -195,9 +224,14 @@ public:
     }
     bool isFeasible(double diCandidate[])
     {
-        bool feasible = diCandidate[I] >= minDutyCycle;
-        feasible &= diCandidate[I] <= maxDutyCycle;
-        feasible &= -dot(nNodes, ki, diCandidate) <= oi - li;
+        bool feasible = true;
+        feasible = feasible && diCandidate[I] >= minDutyCycle - TOL;
+        // printf("isFeasible: %d; ", feasible);
+        feasible = feasible && diCandidate[I] <= maxDutyCycle + TOL;
+        // printf("isFeasible: %d; ", feasible);
+        feasible = feasible && dot(nNodes, ki, diCandidate) >= li - oi - TOL;
+        // printf("isFeasible: %d; ", feasible);
+        // printf("Di: %f %f\n" , diCandidate[0], diCandidate[1]);
         return feasible;
     }
 };
