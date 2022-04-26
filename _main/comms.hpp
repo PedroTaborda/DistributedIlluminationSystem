@@ -85,7 +85,7 @@ inline constexpr unsigned long ROLL_CALL_WAIT_MS = 100;
 inline constexpr signed char addr_offset = 8;
 inline constexpr unsigned long MESSAGE_SLACK_WAIT_MS = 500;
 
-bool receivingBuffer = false;
+extern bool receivingBuffer;
 
 class Comms
 {

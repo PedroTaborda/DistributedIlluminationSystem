@@ -9,6 +9,8 @@ volatile Comms* _comms;
 
 extern int myID;
 
+bool receivingBuffer = false;
+
 void Comms::init() volatile
 {
     Wire.setSDA(SDA_MASTER_PIN);
