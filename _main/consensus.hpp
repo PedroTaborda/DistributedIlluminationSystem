@@ -49,6 +49,8 @@ constexpr double TOL = 1e-4;
 constexpr double maxDutyCycle = 1.0;
 constexpr double minDutyCycle = 0.0;
 
+inline constexpr int HOLD_ITERATIONS = 2;
+
 enum ConsensusState
 {
     CONSENSUS_STATE_NOT_STARTED,
@@ -116,7 +118,7 @@ public:
         if (isFeasible(sol)){
             for (unsigned int i = 0; i < nNodes; i++)
             {
-                di[i] = sol[i];
+                di[iteration % HOLD_ITERATIONS][i] = sol[i];
             }
             //printf("Best: g\n");
             setState(CONSENSUS_STATE_WAITING_FOR_NEIGHBORS);
@@ -140,7 +142,7 @@ public:
         unsigned int best = argmin(5, costs);
 
         for (unsigned int i = 0; i < nNodes; i++) {
-            di[i] = S[best][i];
+            di[iteration % HOLD_ITERATIONS][i] = S[best][i];
         }
         //printf("Costs: %f, %f, %f, %f, %f\n", costs[0] > 100000 ? -1 : costs[0], costs[1] > 100000 ? -1 : costs[1], costs[2] > 100000 ? -1 : costs[2], costs[3] > 100000 ? -1 : costs[3], costs[4] > 100000 ? -1 : costs[4]);
         //printf("Best: %d\n", best);
@@ -170,11 +172,18 @@ public:
                 DEBUG_PRINT("Asking for %hhu di\n", i);
                 SEND_MSG(0, RETRY_TIMEOUT_MS,
                     Wire.write(MSG_TYPE_CONSENSUS_ASK_D);
-                    Wire.write(network.getNetwork()[i]);,
+                    Wire.write(network.getNetwork()[i]);
+                    Wire.write(iteration);,
                 ret)
             }
         }
         beginWaitTime = millis();
+    }
+
+    double* getIterationSolution(int bufferIteration) {
+        uint8_t bufferIndex = bufferIteration % HOLD_ITERATIONS;
+
+        return di[bufferIndex];
     }
 
     ConsensusState state = CONSENSUS_STATE_NOT_STARTED;
@@ -191,7 +200,7 @@ public:
     double lagrangeMultipliers[MAX_DEVICES];
     double currentSolution[MAX_DEVICES];
 
-    double di[MAX_DEVICES];
+    double di[HOLD_ITERATIONS][MAX_DEVICES];
 
     double diMean[MAX_DEVICES];
     double _diMean[MAX_DEVICES];
@@ -307,7 +316,7 @@ public:
     }
     void computeNextLagrangeMultipliers(){
         for (unsigned int i = 0; i < nNodes; i++){
-            lagrangeMultipliers[i] += rho * (di[i] - diMean[i]);
+            lagrangeMultipliers[i] += rho * (di[iteration][i] - diMean[i]);
         }
     }
     void initLagrangeMultipliers(){
@@ -344,7 +353,7 @@ public:
     }
     void resetDi(){
         for (unsigned int i = 0; i < nNodes; i++){
-            di[i] = 0.0f;
+            di[0][i] = 0.0f;
         }
     }
     void resetIteration() {
