@@ -43,6 +43,9 @@ void Controller::setup(float proportionalGain, float integralGain) volatile {
     int64_t delayUs = (int64_t)(samplingPeriod * 1e6);
 
     alarm_pool_add_repeating_timer_us(core1AlarmPool, -delayUs, Controller::controllerLoop, (void *)this, &timerStruct);
+
+    
+            Serial.printf("dfgdfgf \n\n|Kp A %f|Ki %f |", proportionalGain , integralGain);
 }
 
 bool Controller::controllerLoop(repeating_timer *timerStruct) {
@@ -89,7 +92,8 @@ bool Controller::controllerLoop(repeating_timer *timerStruct) {
             feedbackTerm = proportionalTerm + integralTerm;
 
             dutyCycle = feedbackTerm + feedforwardTerm;
-
+            Serial.printf("|u A %f|prop %f | int %f |", dutyCycle, proportionalTerm, integralTerm);
+            Serial.printf("|Kp A %f|Ki %f |", controller->proportionalGain , controller->integralGain);
             // Implement Anti-Windup by saturating the integral term
             if (controller->antiWindup && !fequal(controller->integralGain, 0.f)) {
                 float dutyMin = 0.0f;
@@ -107,13 +111,15 @@ bool Controller::controllerLoop(repeating_timer *timerStruct) {
                 feedbackTerm = proportionalTerm + integralTerm;
             }
         }
-
+         Serial.printf("|ref %lf|ambill %lf ", reference, ambientIlluminance);
+        Serial.printf("| ff %lf| fb %lf |", feedforwardTerm, feedbackTerm);
         dutyCycle = feedforwardTerm + feedbackTerm;
 
         if (dutyCycle < 0.f) dutyCycle = 0.f;
         if (dutyCycle > 1.f) dutyCycle = 1.f;
         controller->dutyCycle = dutyCycle;
 
+        Serial.printf("| u %lf |\n", controller->dutyCycle);
         set_u(controller->dutyCycle);
     }
 

@@ -431,6 +431,10 @@ void Calibrator::selfCalibrate(signed char selfId) {
 
     externalLuminance = secondDutyLuminance - staticGains[selfId] * SECOND_DUTY_CALIBRATION;
 
+    // Store in global variables used by other code
+    gain = staticGains[selfId];
+    ambientIlluminance = externalLuminance;
+
     // Give some slack after the measurements in order to allow for
     // some slight delays causing desynchronization.
     delay(SYNCRONIZATION_WAIT_MS);
