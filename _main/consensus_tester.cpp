@@ -4,7 +4,7 @@
 
 
 
-#ifndef DEBUG
+#ifdef CONSENSUS_TESTER
 int main()
 #else
 int not_actually_main()

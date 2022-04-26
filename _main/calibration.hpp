@@ -2,6 +2,7 @@
 #define CALIBRATION_HPP
 
 #include "globals.hpp"
+#include "controller.hpp"
 
 #include <pico/stdlib.h>
 

@@ -266,7 +266,9 @@ char *calibrateCommand(const char *args)
         return NULL;
     }
     DEBUG_PRINT("Calibrating self with doGammaCalibration: %d, doTauCalibration: %d\n", doGammaCalibration?1:0, doTauCalibration?1:0)
+    controller.turnControllerOff();
     latestCalibration = calibrateSelf((bool)doGammaCalibration, (bool)doTauCalibration);
+    controller.turnControllerOn();
     return ret_str;
 }
 
@@ -340,7 +342,9 @@ void loadParamsStartup(){
 char *calibrateAutoCommand(){
     static char retStr[] = "Calibration successful\n";
     DEBUG_PRINT("Calibrating self with automatic calibration\n")
+    controller.turnControllerOff();
     latestCalibration = calibrateSelf(true, true); // calibrate gamma and tau
+    controller.turnControllerOn();
     saveParamsEEPROM(latestCalibration); // save calibration to EEPROM
     loadParamsStartup(); // make these the active parameters
     return retStr;

@@ -12,6 +12,14 @@ int asked = 1;
 
 bool receivingBuffer = false;
 
+bool streamLuminance = false;
+bool streamDuty = false;
+bool streamSampleTime = false;
+bool streamIntegralError = false;
+bool streamTrackingError = false;
+bool streamSimulator = false;
+bool streamReference = false;
+
 void Comms::init() volatile
 {
     Wire.setSDA(SDA_MASTER_PIN);
@@ -230,6 +238,75 @@ void Comms::flushError() volatile{
     error = false;
 }
 
+void Comms::streamVars() volatile{
+    int sampleNum = controller.getSampleNumber();
+    if (lastSampleStreamed == sampleNum)
+        return;
+
+    lastSampleStreamed = sampleNum;
+
+    sample_t newSample = controller.getSample();
+    int ret=0;
+
+    if(streamDuty){
+        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s d %d %.4f", myID, newSample.u);
+        SEND_MSG(0, RETRY_TIMEOUT_MS,
+            Wire.write(MSG_TYPE_REPLY);
+            Wire.write((char *)streamVarsBuffer);,
+        ret
+        )
+    }
+    if(streamLuminance){
+        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s l %d %.4f", myID, newSample.L);
+        SEND_MSG(0, RETRY_TIMEOUT_MS,
+            Wire.write(MSG_TYPE_REPLY);
+            Wire.write((char *)streamVarsBuffer);,
+        ret
+        )
+    }
+    if(streamSampleTime){
+        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s T %d %.4f", myID, newSample.time);
+        SEND_MSG(0, RETRY_TIMEOUT_MS,
+            Wire.write(MSG_TYPE_REPLY);
+            Wire.write((char *)streamVarsBuffer);,
+        ret
+        )
+    }
+    if(streamIntegralError){
+        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s i %d %.4f", myID, newSample.IntegralError);
+        SEND_MSG(0, RETRY_TIMEOUT_MS,
+            Wire.write(MSG_TYPE_REPLY);
+            Wire.write((char *)streamVarsBuffer);,
+        ret
+        )
+    }
+    if(streamTrackingError){
+        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s t %d %.4f", myID, newSample.TrackingError);
+        SEND_MSG(0, RETRY_TIMEOUT_MS,
+            Wire.write(MSG_TYPE_REPLY);
+            Wire.write((char *)streamVarsBuffer);,
+        ret
+        )
+    }
+    if(streamSimulator){
+        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s s %d %.4f", myID, newSample.SimulatorValue);
+        SEND_MSG(0, RETRY_TIMEOUT_MS,
+            Wire.write(MSG_TYPE_REPLY);
+            Wire.write((char *)streamVarsBuffer);,
+        ret
+        )
+    }
+    if(streamReference){
+        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s r %d %.4f", myID, newSample.Reference);
+        SEND_MSG(0, RETRY_TIMEOUT_MS,
+            Wire.write(MSG_TYPE_REPLY);
+            Wire.write((char *)streamVarsBuffer);,
+        ret
+        )
+    }
+
+}
+
 void Comms::processReceivedData() volatile
 {
     noInterrupts();
@@ -405,6 +482,7 @@ void Comms::eventLoop() volatile
 {
     flushError();
     processReceivedData();
+    streamVars();
 }
 
 void Comms::startVerifyAckAlarm() volatile {
