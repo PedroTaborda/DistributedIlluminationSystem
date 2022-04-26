@@ -208,11 +208,11 @@ void Comms::onReceive(int signed bytesReceived) volatile
         return;
     }
     
-    for (int buf_idx = 1; buf_idx < bytesReceived; buf_idx++)
+    for (int buf_idx = 1; buf_idx < bytesReceived-1; buf_idx++)
     {
         receivedMsgDataBuffer[dataBufferHead][buf_idx] = (uint8_t)Wire1.read();
     }
-    receivedMsgDataBuffer[dataBufferHead][bytesReceived] = '\0';
+    receivedMsgDataBuffer[dataBufferHead][bytesReceived-1] = '\0';
     dataBufferHead = (MSG_BUFFER_SIZE + dataBufferHead + 1) % MSG_BUFFER_SIZE;
     dataBufferItems = min(MSG_BUFFER_SIZE, dataBufferItems + 1);
     receivedDataSize = bytesReceived;
