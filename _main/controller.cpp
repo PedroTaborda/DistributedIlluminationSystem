@@ -20,7 +20,7 @@ void Controller::setup(float proportionalGain, float integralGain) volatile {
     feedforward = true;
     controllerOn = false;
     control_on_req = false;
-    simulatorOn = false;
+    simulatorOn = true;
     reference[0] = 0;
     reference[1] = 0;
     refL_mlux = 0;
@@ -52,8 +52,7 @@ bool Controller::controllerLoop(repeating_timer *timerStruct) {
     uint64_t t;
     controller->handle_requests();
 
-    // just to avoid typing everytime
-    float reference = controller->reference[controller->occupancy];
+    float reference = controller->innerReference;
 
     t = time_us_64();
     controller->sampleInstant = t;
