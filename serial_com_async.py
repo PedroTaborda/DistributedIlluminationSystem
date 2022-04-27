@@ -1,5 +1,8 @@
 import threading
 import time
+from traceback import print_tb
+import numpy as np
+import serial.tools.list_ports
 import serial
 import queue
 import PySimpleGUI as sg
@@ -7,53 +10,59 @@ import matplotlib.figure as figure
 import matplotlib.pyplot as plt
 
 
+number_of_network_nodes = 3
+
+monitor_serial = 'All' # 'Single' or 'All'
+
 class Artist:
     MAX_SAMPLES = 5000
-    def __init__(self, ports) -> None:
-        self.ports = ports
+    def __init__(self, nodes) -> None:
+        self.nodes = nodes
 
         self.rows = 2
         self.cols = 2
         plt.ion()
-        self.subplots = [plt.subplots(self.rows, self.cols, num=i) for i in range(len(ports))]
+        self.subplots = [plt.subplots(self.rows, self.cols, num=i, sharex=True) for i in range(len(nodes))]
 
         self.figures:list[figure.Figure] = [subplot[0] for subplot in self.subplots]
         self.axes: list[tuple[tuple[plt.Axes]]] = [subplot[1] for subplot in self.subplots] # self.rows by self.cols
 
-        self.latest_time = 0
+        self.latest_time = [0] * len(nodes)
 
 
         # illuminance
-        self.l = [[]] * len(ports)
-        self.l_t = [[]] * len(ports)
+        self.l = [[]] * len(nodes)
+        self.l_t = [[]] * len(nodes)
         self.l_lines : list[plt.Line2D] = [ax[0][0].plot([], label='illuminance')[0] for ax in self.axes]
 
         # reference
-        self.r = [[]] * len(ports)
-        self.r_t = [[]] * len(ports)
+        self.r = [[]] * len(nodes)
+        self.r_t = [[]] * len(nodes)
         self.r_lines : list[plt.Line2D] = [ax[0][0].plot([], label='reference')[0] for ax in self.axes]
 
         # duty cycle
-        self.DC = [[]] * len(ports)
-        self.DC_t = [[]] * len(ports)
+        self.DC = [[]] * len(nodes)
+        self.DC_t = [[]] * len(nodes)
         self.DC_lines : list[plt.Line2D] = [ax[0][1].plot([], label='duty cycle')[0] for ax in self.axes]
 
         # integral error
-        self.IE = [[]] * len(ports)
-        self.IE_t = [[]] * len(ports)
+        self.IE = [[]] * len(nodes)
+        self.IE_t = [[]] * len(nodes)
         self.IE_lines : list[plt.Line2D] = [ax[1][0].plot([], label='integral error')[0] for ax in self.axes]
         
         # tracking error
-        self.TE = [[]] * len(ports)
-        self.TE_t = [[]] * len(ports)
+        self.TE = [[]] * len(nodes)
+        self.TE_t = [[]] * len(nodes)
         self.TE_lines : list[plt.Line2D] = [ax[1][1].plot([], label='tracking error')[0] for ax in self.axes]
 
     def setup_figures(self):
         for idx, figure in enumerate(self.figures):
-            figure.suptitle(f"Luminaire at '{self.ports[idx]}'")
+            figure.suptitle(f"Node '{self.nodes[idx]}'")
+            self.axes[idx][1][0].set_xlabel('Time (s)')
+            self.axes[idx][1][1].set_xlabel('Time (s)')
 
     def clear_figures(self):
-        for idx in range(len(self.ports)):
+        for idx in range(len(self.nodes)):
             for row in range(self.rows):
                 for col in range(self.cols):
                     ax = self.axes[idx][row][col]
@@ -61,68 +70,114 @@ class Artist:
                         line.set_data([], [])
         self.update_figures()
 
+        # illuminance
+        self.l = [[]] * len(self.nodes)
+        self.l_t = [[]] * len(self.nodes)
+
+        # reference
+        self.r = [[]] * len(self.nodes)
+        self.r_t = [[]] * len(self.nodes)
+
+        # duty cycle
+        self.DC = [[]] * len(self.nodes)
+        self.DC_t = [[]] * len(self.nodes)
+
+        # integral error
+        self.IE = [[]] * len(self.nodes)
+        self.IE_t = [[]] * len(self.nodes)
+        
+        # tracking error
+        self.TE = [[]] * len(self.nodes)
+        self.TE_t = [[]] * len(self.nodes)
+
     def update_figures(self):
-        for idx in range(len(self.ports)):
+        for idx in range(len(self.nodes)):
             for row in range(self.rows):
                 for col in range(self.cols):
                     ax = self.axes[idx][row][col]
-                    if ax.get_lines():
-                        ax.relim()
-                        ax.autoscale_view()
-                        ax.legend()
+                    ax.set_xlim((self.latest_time[idx] - 5, self.latest_time[idx] + 0.5))
+                    ax.legend()
+            node_axes = self.axes[idx]
+            lux_ax = node_axes[0][0]
+            dc_ax = node_axes[0][1]
+            ie_ax = node_axes[1][0]
+            te_ax = node_axes[1][1]
+            
+            dc_ax.set_ylim((-0.05, 1.05))
+            if self.l[idx]:
+                lux_ax.set_ylim((-2, max(max(max(self.l[idx]), max(self.r[idx])) * 1.1, 10)))
+            else:
+                lux_ax.set_ylim((-2, 10))
+            if self.IE[idx]:
+                ie_ax.set_ylim((min(-1, min(self.IE[idx]) - 0.3), max(1, max(self.IE[idx]) + 0.3) ) )
+            else:
+                ie_ax.set_ylim((-1, 1))
+            if self.TE[idx]:
+                te_ax.set_ylim((min(-1, min(self.TE[idx]) - 0.3), max(1, max(self.TE[idx]) + 0.3) ) )
+            else:
+                te_ax.set_ylim((-1, 1))
 
     @staticmethod 
-    def wrap(lst: list):
-        return lst[-Artist.MAX_SAMPLES:]
+    def wrap(t: list, vals: list):
+        vals = vals[-Artist.MAX_SAMPLES:]
 
-    def func_t(self, idx, t):
-        self.time[idx].append(t)
-        self.time[idx] = self.wrap(self.time[idx])
-        self.time_lines[idx].set_data(self.time[idx], self.time[idx])
+        tmin = t[-1] - 6.0
+        tmax = t[-1] + 0.5
+        t_arr = np.array(t)
+        tmin_idx = np.searchsorted(t_arr, tmin)
+        tmax_idx = np.searchsorted(t_arr, tmax)
+        return t[tmin_idx:tmax_idx], vals[tmin_idx:tmax_idx]
 
     def func_TE(self, idx, tracking_error, time):
         self.TE_t[idx].append(time)
         self.TE[idx].append(tracking_error)
-        self.TE_t[idx] = self.wrap(self.TE_t[idx])
-        self.TE[idx] = self.wrap(self.TE[idx])
+        self.TE_t[idx], self.TE[idx] = self.wrap(self.TE_t[idx], self.TE[idx])
         self.TE_lines[idx].set_data(self.TE_t[idx], self.TE[idx])
 
     def func_l(self, idx, illuminance, time):
         self.l_t[idx].append(time)
         self.l[idx].append(illuminance)
-        self.l_t[idx] = self.wrap(self.l_t[idx])
-        self.l[idx] = self.wrap(self.l[idx])
+        self.l_t[idx], self.l[idx] = self.wrap(self.l_t[idx], self.l[idx])
         self.l_lines[idx].set_data(self.l_t[idx], self.l[idx])
 
     def func_r(self, idx, reference, time):
         self.r_t[idx].append(time)
         self.r[idx].append(reference)
-        self.r_t[idx] = self.wrap(self.r_t[idx])
-        self.r[idx] = self.wrap(self.r[idx])
+        self.r_t[idx], self.r[idx] = self.wrap(self.r_t[idx], self.r[idx])
         self.r_lines[idx].set_data(self.r_t[idx], self.r[idx])
 
     def func_IE(self, idx, integral_error, time):
         self.IE_t[idx].append(time)
         self.IE[idx].append(integral_error)
-        self.IE_t[idx] = self.wrap(self.IE_t[idx])
-        self.IE[idx] = self.wrap(self.IE[idx])
+        self.IE_t[idx], self.IE[idx] = self.wrap(self.IE_t[idx], self.IE[idx])
         self.IE_lines[idx].set_data(self.IE_t[idx], self.IE[idx])
 
     def func_DC(self, idx, duty_cycle, time):
         self.DC_t[idx].append(time)
         self.DC[idx].append(duty_cycle)
-        self.DC_t[idx] = self.wrap(self.DC_t[idx])
-        self.DC[idx] = self.wrap(self.DC[idx])
+        self.DC_t[idx], self.DC[idx] = self.wrap(self.DC_t[idx], self.DC[idx])
         self.DC_lines[idx].set_data(self.DC_t[idx], self.DC[idx])
 
+ports = serial.tools.list_ports.comports()
 
-serial_ports = ['COM4', 'COM5', 'COM6']
+serial_ports = []
+for port, desc, hwid in sorted(ports):
+    print(f"{port}: {desc} [{hwid}]")
+for port, desc, hwid in sorted(ports):
+    if 'Serial' in desc:
+        print(f"Added {port}")
+        serial_ports.append(port)
 
-artist = Artist(serial_ports)
+if monitor_serial == 'Single':
+    ports_to_monitor = [serial_ports[0]]
+else:
+    ports_to_monitor = serial_ports
+
+names = [f"Node {i+1}" for i in range(number_of_network_nodes)]
+artist = Artist(names)
 artist.setup_figures()
 
 commands = (
-    ('t ', 'time', artist.func_t),
     ('s t ', 'tracking error', artist.func_TE),
     ('s l ', 'illuminance', artist.func_l),
     ('s r ', 'reference', artist.func_r),
@@ -136,7 +191,7 @@ input_height = 5
 output_height = 7
 
 inputs_str = [""]*input_height
-outputs_str = [[""]*output_height for _ in range(len(serial_ports))]
+outputs_str = [[""]*output_height for _ in range(number_of_network_nodes)]
 
 def serial_read(serial: serial.Serial, data_queue_out: queue.Queue, data_queue_in: queue.Queue):
     buf = b''
@@ -158,10 +213,10 @@ def update_str_lst(lst, new_str):
     lst[:-1] = lst[1:]
     lst[-1] = new_str
 
-queues_out = [queue.Queue(QUEUE_SIZE) for _ in range(len(serial_ports))]
-queues_in = [queue.Queue(QUEUE_SIZE) for _ in range(len(serial_ports))]
+queues_out = [queue.Queue(QUEUE_SIZE) for _ in range(len(ports_to_monitor))]
+queues_in = [queue.Queue(QUEUE_SIZE) for _ in range(len(ports_to_monitor))]
 serial_objects = []
-for port in serial_ports:
+for port in ports_to_monitor:
     serial_objects += [serial.Serial(port, timeout=None)]
     time.sleep(0.2)
     
@@ -169,24 +224,24 @@ threads = [threading.Thread(target=serial_read, args=(serial_objects[i], queues_
 
 [thread.start() for thread in threads]
 
-data_read_buffers = [b'' for _ in range(len(serial_ports))]
+data_read_buffers = [b'' for _ in range(len(ports_to_monitor))]
 
 sg.theme('Python')
-column = [[sg.Text(f'{port}:'), sg.Text(size=(80,output_height), key=port)] for port in serial_ports]
+column = [[sg.Text(f'{port}:'), sg.Text(size=(80,output_height), key=port)] for port in ports_to_monitor]
 
-column += [[sg.Text(f'[{serial_ports[0]}] Input:'), sg.Text(size=(80, input_height), key='input_win')]]
+column += [[sg.Text(f'[{ports_to_monitor[0]}] Input:'), sg.Text(size=(80, input_height), key='input_win')]]
 
-TOGGLE_RL_KEYS = [f"{port}_toggle_rl" for port in serial_ports]
-toggle_rl = [sg.Button(f"{serial_ports[i]}", key=TOGGLE_RL_KEYS[i]) for i in range(len(serial_ports))]
+TOGGLE_RL_KEYS = [f"{node}_toggle_rl" for node in range(number_of_network_nodes)]
+toggle_rl = [sg.Button(f"Node {i+1}", key=TOGGLE_RL_KEYS[i]) for i in range(number_of_network_nodes)]
 
-TOGGLE_TE_KEYS = [f"{port}_toggle_te" for port in serial_ports]
-toggle_te = [sg.Button(f"{serial_ports[i]}", key=TOGGLE_TE_KEYS[i]) for i in range(len(serial_ports))]
+TOGGLE_TE_KEYS = [f"{node}_toggle_te" for node in range(number_of_network_nodes)]
+toggle_te = [sg.Button(f"Node {i+1}", key=TOGGLE_TE_KEYS[i]) for i in range(number_of_network_nodes)]
 
-TOGGLE_IE_KEYS = [f"{port}_toggle_ie" for port in serial_ports]
-toggle_ie = [sg.Button(f"{serial_ports[i]}", key=TOGGLE_IE_KEYS[i]) for i in range(len(serial_ports))]
+TOGGLE_IE_KEYS = [f"{node}_toggle_ie" for node in range(number_of_network_nodes)]
+toggle_ie = [sg.Button(f"Node {i+1}", key=TOGGLE_IE_KEYS[i]) for i in range(number_of_network_nodes)]
 
-TOGGLE_DC_KEYS = [f"{port}_toggle_dc" for port in serial_ports]
-toggle_dc = [sg.Button(f"{serial_ports[i]}", key=TOGGLE_DC_KEYS[i]) for i in range(len(serial_ports))]
+TOGGLE_DC_KEYS = [f"{node}_toggle_dc" for node in range(number_of_network_nodes)]
+toggle_dc = [sg.Button(f"Node {i+1}", key=TOGGLE_DC_KEYS[i]) for i in range(number_of_network_nodes)]
 
 
 layout = [[sg.Column(column, element_justification='l', vertical_alignment='t')],
@@ -210,26 +265,31 @@ while True:
                 data_read_buffers[idx] += buffer_queue.get(block=False)
             data_string = data_read_buffers[idx].decode('latin-1')
             data_read_buffers[idx] = b''
+            if _iter == 0:
+                break
             if data_string:
                 for line in data_string.split('\n'):
                     if line:
                         update_str_lst(outputs_str[idx], line)
-                        if idx != 0: # skip all but the master
-                            continue 
                         for command in commands:
                             if line.startswith(command[0]):
                                 args = (line.split(command[0])[1]).split(' ')
                                 flargs = [float(arg) for arg in args[1:]]
                                 time_of_command = float(args[-1])/1000.0
-                                if time_of_command < artist.latest_time - 0.3: # ignore old samples
-                                    break
-                                print(f"{command[1]}({args[0]}): {flargs}")
+                                if artist.latest_time[int(args[0])] == 0.0:
+                                    artist.latest_time[int(args[0])] = time_of_command
+                                if time_of_command < artist.latest_time[int(args[0])] - 1.0: # ignore old samples
+                                    continue
+                                if time_of_command > artist.latest_time[int(args[0])] + 6000.0: # ignore probably corrupted samples
+                                    continue
+                                artist.latest_time[int(args[0])] = max(artist.latest_time[int(args[0])], time_of_command)
                                 command[2](int(args[0]), *flargs[:-1], time_of_command)
 
                 window[serial_ports[idx]].update('\n'.join(outputs_str[idx]))
         except queue.Empty:
             pass
     
+    _iter += 1
     if _iter % 100 == 0:
         artist.update_figures()
         event, values = window.read(timeout=1)
@@ -263,7 +323,6 @@ while True:
             if event == toggle_info_key:
                 queues_in[0].put(f"s d {idx}\n".encode('latin-1'))
         
-    _iter += 1
 
 
 window.close()
