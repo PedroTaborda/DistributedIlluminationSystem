@@ -1,6 +1,7 @@
 #include "controller.hpp"
 
 #include "globals.hpp"
+#include "consensus.hpp"
 #include "utilities.hpp"
 
 volatile Controller controller;
@@ -9,8 +10,8 @@ repeating_timer timerStruct;
 Controller::Controller() {}
 
 void Controller::setup(float proportionalGain, float integralGain) volatile {
-    this->proportionalGain = proportionalGain;
-    this->integralGain = integralGain;
+    this->proportionalGain_req = proportionalGain;
+    this->integralGain_req = integralGain;
 
     integralError = 0.f;
     samplingPeriod = 0.01;
@@ -43,9 +44,6 @@ void Controller::setup(float proportionalGain, float integralGain) volatile {
     int64_t delayUs = (int64_t)(samplingPeriod * 1e6);
 
     alarm_pool_add_repeating_timer_us(core1AlarmPool, -delayUs, Controller::controllerLoop, (void *)this, &timerStruct);
-
-    
-            Serial.printf("dfgdfgf \n\n|Kp A %f|Ki %f |", proportionalGain , integralGain);
 }
 
 bool Controller::controllerLoop(repeating_timer *timerStruct) {
@@ -71,13 +69,13 @@ bool Controller::controllerLoop(repeating_timer *timerStruct) {
         feedbackReference = reference;
 
     if (controller->controllerOn) {
-        float feedforwardTerm = 0.f;
+        float feedforwardTermLocal = 0.f;
         float feedbackTerm = 0.f;
         float proportionalTerm = 0.f;
         float integralTerm = 0.f;
         float dutyCycle = 0.f;
 
-        if (controller->feedforward) feedforwardTerm = (reference - ambientIlluminance) / gain;
+        if (controller->feedforward) feedforwardTermLocal = controller->feedforwardTerm;
 
         if (controller->feedback) {
             // Compute error
@@ -91,35 +89,30 @@ bool Controller::controllerLoop(repeating_timer *timerStruct) {
 
             feedbackTerm = proportionalTerm + integralTerm;
 
-            dutyCycle = feedbackTerm + feedforwardTerm;
-            Serial.printf("|u A %f|prop %f | int %f |", dutyCycle, proportionalTerm, integralTerm);
-            Serial.printf("|Kp A %f|Ki %f |", controller->proportionalGain , controller->integralGain);
+            dutyCycle = feedbackTerm + feedforwardTermLocal;
             // Implement Anti-Windup by saturating the integral term
             if (controller->antiWindup && !fequal(controller->integralGain, 0.f)) {
                 float dutyMin = 0.0f;
                 float dutyMax = 1.0f;
 
                 if (dutyCycle < dutyMin) {
-                    integralTerm = dutyMin - feedforwardTerm - proportionalTerm;
+                    integralTerm = dutyMin - feedforwardTermLocal - proportionalTerm;
                     controller->integralError = integralTerm / controller->integralGain;
                 }
 
                 if (dutyCycle > dutyMax) {
-                    integralTerm = dutyMax - feedforwardTerm - proportionalTerm;
+                    integralTerm = dutyMax - feedforwardTermLocal - proportionalTerm;
                     controller->integralError = integralTerm / controller->integralGain;
                 }
                 feedbackTerm = proportionalTerm + integralTerm;
             }
         }
-         Serial.printf("|ref %lf|ambill %lf ", reference, ambientIlluminance);
-        Serial.printf("| ff %lf| fb %lf |", feedforwardTerm, feedbackTerm);
-        dutyCycle = feedforwardTerm + feedbackTerm;
+        dutyCycle = feedforwardTermLocal + feedbackTerm;
 
         if (dutyCycle < 0.f) dutyCycle = 0.f;
         if (dutyCycle > 1.f) dutyCycle = 1.f;
         controller->dutyCycle = dutyCycle;
 
-        Serial.printf("| u %lf |\n", controller->dutyCycle);
         set_u(controller->dutyCycle);
     }
 
@@ -132,10 +125,10 @@ void Controller::handle_requests() volatile {
     controllerOn = control_on_req;
     proportionalGain = proportionalGain_req;
     integralGain = integralGain_req;
-    occupancy = occupancy_req;
+    feedforwardTerm = feedforwardTermReq;
     if (new_ref) {
-        reference[occupancy] = refL_mlux / 1000.0;
-        changeSimulatorReference(reference[occupancy]);
+        innerReference = refL_mlux / 1000.0;
+        changeSimulatorReference(innerReference);
 
         // only let messenger core continue after all is written
         new_ref = false;
@@ -153,6 +146,7 @@ void Controller::update_outputs() volatile {
     newsample.SimulatorValue = simulatorValue;
     newsample.Reference = reference[occupancy];
     newsample.num = sampleNumber;
+    newsample.u = dutyCycle;
 
     latest_sample.insert(newsample);
 
@@ -208,7 +202,10 @@ sample_t Controller::getSample() volatile {
     return latest;
 }
 
-float Controller::getReference() volatile { return reference[occupancy]; }
+float Controller::getReference() volatile { return innerReference; }
+
+float Controller::getOccupiedReference() volatile {return reference[1];}
+float Controller::getUnoccupiedReference() volatile {return reference[0];}
 
 int Controller::getOccupancy() volatile { return occupancy; }
 
@@ -238,7 +235,7 @@ void Controller::getIlluminanceBuffer(float out[outBufferSize]) volatile {
     }
 }
 
-void Controller::setReference(float reference) volatile {
+void Controller::setInnerReference(float reference) volatile {
     /* Set illuminance reference (lux) and turn control on */
     control_on_req = true;
     refL_mlux = (int)(reference * 1000 + 0.5);  // +0.5 to round
@@ -247,16 +244,39 @@ void Controller::setReference(float reference) volatile {
         ;  // wait for controller core to acknowledge new refL
 }
 
+void Controller::setReference(float referenceIn) volatile {
+    reference[occupancy] = referenceIn;
+    consensus.setIlluminanceReference(referenceIn);
+}
+
+void Controller::setOccupiedReference(float referenceIn) volatile {
+    reference[1] = referenceIn;
+    if(occupancy == 1)
+        setReference(referenceIn);
+}
+
+void Controller::setUnoccupiedReference(float referenceIn) volatile {
+    reference[0] = referenceIn;
+    if(occupancy == 0)
+        setReference(referenceIn);
+}
+
 void Controller::setDutyCycle(float duty) volatile {
     turnControllerOff();
     dutyCycle = duty;
     set_u(duty);
 }
 
+void Controller::setDutyCycleFeedforward(float duty) volatile {
+    feedforwardTermReq = duty;
+
+    while(feedforwardTerm != feedforwardTermReq)
+        ;
+}
+
 void Controller::setOccupancy(int occupancy_in) volatile {
-    occupancy_req = occupancy_in;
-    while (occupancy != occupancy_in)
-        ;  // wait for occupancy to change
+    if(occupancy != occupancy_in)
+        setReference(reference[occupancy_in]);
 }
 
 void Controller::turnControllerOff() volatile {

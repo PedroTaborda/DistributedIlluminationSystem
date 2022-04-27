@@ -306,7 +306,7 @@ void Comms::processReceivedData() volatile
     else
         receivedMsg = MSG_TYPE_NONE;
 
-    volatile uint8_t *receivedDataBuffer;
+    volatile uint8_t *receivedDataBuffer = NULL;
     if(dataBufferItems != 0)
         receivedDataBuffer = receivedMsgDataBuffer[(MSG_BUFFER_SIZE + dataBufferHead - dataBufferItems--) % MSG_BUFFER_SIZE];
     interrupts();

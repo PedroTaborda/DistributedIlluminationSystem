@@ -57,9 +57,15 @@ class Controller {
 
     // User interaction functions
     float getReference() volatile;
+    float getOccupiedReference() volatile;
+    float getUnoccupiedReference() volatile;
     int getOccupancy() volatile;
+    void setInnerReference(float reference) volatile;
     void setReference(float reference) volatile;
+    void setOccupiedReference(float reference) volatile;
+    void setUnoccupiedReference(float reference) volatile;
     void setDutyCycle(float duty) volatile;
+    void setDutyCycleFeedforward(float duty) volatile;
     void setOccupancy(int occupancy) volatile;
     int getSampleNumber() volatile;  // returns number of latest sample, returns 0 if none is saved
     sample_t getSample() volatile;
@@ -103,7 +109,9 @@ class Controller {
     bool simulatorOn;   // I
     int occupancy;
     float reference[2];
+    float innerReference;
     float dutyCycle;
+    float feedforwardTerm = 0.f, feedforwardTermReq = 0.f;
     float currentLux;
 
     // sample buffer of size 2 such that controller can write to one position while the class user

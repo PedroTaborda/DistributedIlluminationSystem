@@ -19,8 +19,8 @@ char *printCalibratedCommand();
 char *calibrateAutoCommand();
 
 inline constexpr unsigned long WAIT_TIME_MS = 6000;
-inline constexpr unsigned long ID_WAIT_TIME_MS = 3000;
-inline constexpr unsigned long STEADY_STATE_WAIT_MS = 100;
+inline constexpr unsigned long ID_WAIT_TIME_MS = 500;
+inline constexpr unsigned long STEADY_STATE_WAIT_MS = 3000;
 inline constexpr unsigned long SYNCRONIZATION_WAIT_MS = 500;
 
 inline constexpr float FIRST_DUTY_CALIBRATION = 0.0f;
