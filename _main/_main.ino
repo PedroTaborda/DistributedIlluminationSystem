@@ -86,6 +86,7 @@ CommandParser parser(
         {'s', "", "simulator", noArgCom([](){streamSimulator = !streamSimulator; ACK}), NULL},
         {'r', "", "reference", noArgCom([](){streamReference = !streamReference; ACK}), NULL},
         {'\0', "", "", NULL, NULL}}},
+    {'S', "<int: N>", "stream skips N samples", intArgCom([](int N){if(N < 0) {ERR} skipSamplesStream = (unsigned int) N; ACK}), NULL},
     {'t', "", "time", printfCom("t %d %lu\n", myID, millis()), NULL},
     {'U', "<float>", "sets the unoccupied lower bound lumminance", floatArgCom([](float val){if(val < 0) ERR controller.setUnoccupiedReference(val); ACK}), NULL},
     {'w', "<int>", "sets the feedforward state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setFeedforward(val); ACK}), NULL},

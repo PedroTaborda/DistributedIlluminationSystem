@@ -111,6 +111,8 @@ typedef uint8_t messageData[receivedDataBufferSize];
 
 extern bool receivingBuffer;
 
+
+extern unsigned int skipSamplesStream;
 // flags for variable streaming
 extern bool streamLuminance;
 extern bool streamDuty;
