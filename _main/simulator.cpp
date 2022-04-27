@@ -47,6 +47,7 @@ void Simulator::changeInput(uint64_t time, double goalVoltage, double currentVol
     currentInitialTime = time;
     currentInitialVoltage = currentVoltage;
     currentTimeConstant = timeConstant(currentVoltage, goalVoltage);
+    currentFinalVoltage = goalVoltage;
 }
 
 double Simulator::voltageToLux(double voltage) volatile{
