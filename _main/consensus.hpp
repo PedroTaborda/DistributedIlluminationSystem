@@ -286,7 +286,7 @@ public:
                 diS4[i] = 0.0;
             } else {
                 alpha = ki[i]/(dot(nNodes, ki, ki) - ki[I] * ki[I]);
-                diS4[i] = zi[i] / rho - alpha * (oi - li + ( - dot(nNodes, ki, zi) + ki[I]*zi[I]) / rho);
+                diS4[i] = zi[i] / rho - alpha * (oi - li + ( dot(nNodes, ki, zi) - ki[I]*zi[I]) / rho);
             }
         }
         return diS4;
