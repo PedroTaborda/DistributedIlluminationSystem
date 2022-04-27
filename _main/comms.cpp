@@ -263,7 +263,7 @@ void Comms::streamVars() volatile{
     unsigned long t = 0;
     unsigned char cmd = '_';
     if(streamDuty){
-        DEBUG_PRINT("Streaming duty cycle to %d\n", dutyStreamDisplayer);
+        DEBUG_PRINT("Streaming duty cycle to %d [s d %d %.4f %llu]\n", dutyStreamDisplayer, myID, newSample.u, newSample.time / 1000);
         if (dutyStreamDisplayer == myID)
             Serial.printf("s d %d %.4f %llu\n", myID, newSample.u, newSample.time / 1000);
         else{
@@ -285,7 +285,7 @@ void Comms::streamVars() volatile{
         }
     }
     if(streamIntegralError){
-        DEBUG_PRINT("Streaming integral error to %d\n", integralErrorStreamDisplayer);
+        DEBUG_PRINT("Streaming integral error to %d [s i %d %.4f %llu]\n", integralErrorStreamDisplayer, myID, newSample.IntegralError, newSample.time / 1000);
         if (integralErrorStreamDisplayer == myID)
             Serial.printf("s i %d %.4f %llu\n", myID, newSample.IntegralError, newSample.time / 1000);
         else{
@@ -296,7 +296,7 @@ void Comms::streamVars() volatile{
         }
     }
     if(streamTrackingError){
-        DEBUG_PRINT("Streaming tracking error to %d\n", trackingErrorStreamDisplayer);
+        DEBUG_PRINT("Streaming tracking error to %d [s t %d %.4f %llu]\n", trackingErrorStreamDisplayer, myID, newSample.TrackingError, newSample.time / 1000);
         if (trackingErrorStreamDisplayer == myID)
             Serial.printf("s t %d %.4f %llu\n", myID, newSample.TrackingError, newSample.time / 1000);
         else{
@@ -307,7 +307,7 @@ void Comms::streamVars() volatile{
         }
     }
     if(streamSimulator){
-        DEBUG_PRINT("Streaming simulator to %d\n", simulatorStreamDisplayer);
+        DEBUG_PRINT("Streaming simulator to %d [s s %d %.4f %llu]\n", simulatorStreamDisplayer, myID, newSample.SimulatorValue, newSample.time / 1000);
         if (simulatorStreamDisplayer == myID)
             Serial.printf("s s %d %.4f %llu\n", myID, newSample.SimulatorValue, newSample.time / 1000);
         else{
@@ -318,7 +318,7 @@ void Comms::streamVars() volatile{
         }
     }
     if(streamReference){
-        DEBUG_PRINT("Streaming reference to %d\n", referenceStreamDisplayer);
+        DEBUG_PRINT("Streaming reference to %d [s r %d %.4f %llu]\n", referenceStreamDisplayer, myID, newSample.Reference, newSample.time / 1000);
         if (referenceStreamDisplayer == myID)
             Serial.printf("s r %d %.4f %llu\n", myID, newSample.Reference, newSample.time / 1000);
         else{
