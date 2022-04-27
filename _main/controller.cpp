@@ -20,7 +20,7 @@ void Controller::setup(float proportionalGain, float integralGain) volatile {
     feedforward = true;
     controllerOn = false;
     control_on_req = false;
-    simulatorOn = false;
+    simulatorOn = true;
     reference[0] = 0;
     reference[1] = 0;
     refL_mlux = 0;
@@ -39,7 +39,7 @@ void Controller::setup(float proportionalGain, float integralGain) volatile {
     luminanceBuffer.reset();
     dutyBuffer.reset();
     sampleNumber = 0;
-    simulator.initialize(micros(), measureVoltage(10), dutyCycle);
+    simulator.initialize(micros(), measureVoltage(10), l2v(0));
 
     int64_t delayUs = (int64_t)(samplingPeriod * 1e6);
 
@@ -52,8 +52,7 @@ bool Controller::controllerLoop(repeating_timer *timerStruct) {
     uint64_t t;
     controller->handle_requests();
 
-    // just to avoid typing everytime
-    float reference = controller->reference[controller->occupancy];
+    float reference = controller->innerReference;
 
     t = time_us_64();
     controller->sampleInstant = t;
@@ -171,12 +170,7 @@ void Controller::update_outputs() volatile {
 }
 
 void Controller::changeSimulatorReference(float reference) volatile {
-    float dutyCycle = (reference - ambientIlluminance) / gain;
-
-    if (dutyCycle > 1.0f) dutyCycle = 1.0f;
-    if (dutyCycle < 0.0f) dutyCycle = 0.0f;
-
-    simulator.changeInput(micros(), dutyCycle, measureVoltage(10));
+    simulator.changeInput(micros(), l2v(reference), measureVoltage(10));
 }
 
 // Interface functions to be accessed by messenger core

@@ -14,7 +14,7 @@ public:
     // Get current predicted value
     double getLuminosity(uint64_t time) volatile;
     // Step change
-    void changeInput(uint64_t time, double duty, double currentVoltage) volatile;
+    void changeInput(uint64_t time, double goalVoltage, double currentVoltage) volatile;
 
 private:
 
@@ -31,7 +31,7 @@ private:
 
     // State variables of the system.
     unsigned long currentInitialTime;
-    double currentInitialVoltage, currentInitialDuty;
+    double currentInitialVoltage, currentFinalVoltage;
     double currentTimeConstant;
 };
 

@@ -73,6 +73,7 @@ CommandParser parser(
         {'\0', "", "", NULL, NULL}}},
     {'h', "", "help", noArgCom(help), NULL},
     {'k', "<int>", "callibrator gain <id> to <id>", intArgCom([](int id) {printI2C("k %d %d %f\n", myID, id, calibrator.getGainId(network.getIndexId(id))) }), NULL},
+    {'m', "<bool>", "set simulator", boolArgCom([](bool newSimState){controller.setSimulator(newSimState); ACK}), NULL},
     {'o', "<int>", "sets the occupancy state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setOccupancy(val); ACK}), NULL},
     {'O', "<float>", "sets the occupied lower bound lumminance", floatArgCom([](float val){if(val < 0) ERR controller.setOccupiedReference(val); ACK}), NULL},
     {'p', "", "ack", noArgCom([](){ACK}), NULL},
