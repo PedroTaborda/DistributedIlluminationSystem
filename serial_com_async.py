@@ -1,4 +1,5 @@
 import threading
+import time
 import serial
 import queue
 import PySimpleGUI as sg
@@ -159,7 +160,11 @@ def update_str_lst(lst, new_str):
 
 queues_out = [queue.Queue(QUEUE_SIZE) for _ in range(len(serial_ports))]
 queues_in = [queue.Queue(QUEUE_SIZE) for _ in range(len(serial_ports))]
-serial_objects = [serial.Serial(port, timeout=None) for port in serial_ports]
+serial_objects = []
+for port in serial_ports:
+    serial_objects += [serial.Serial(port, timeout=None)]
+    time.sleep(0.2)
+    
 threads = [threading.Thread(target=serial_read, args=(serial_objects[i], queues_out[i], queues_in[i]), daemon=True) for i in range(len(serial_objects))]
 
 [thread.start() for thread in threads]
@@ -174,11 +179,11 @@ column += [[sg.Text(f'[{serial_ports[0]}] Input:'), sg.Text(size=(80, input_heig
 TOGGLE_RL_KEYS = [f"{port}_toggle_rl" for port in serial_ports]
 toggle_rl = [sg.Button(f"{serial_ports[i]}", key=TOGGLE_RL_KEYS[i]) for i in range(len(serial_ports))]
 
-TOGGLE_IE_KEYS = [f"{port}_toggle_ie" for port in serial_ports]
-toggle_ie = [sg.Button(f"{serial_ports[i]}", key=TOGGLE_IE_KEYS[i]) for i in range(len(serial_ports))]
-
 TOGGLE_TE_KEYS = [f"{port}_toggle_te" for port in serial_ports]
 toggle_te = [sg.Button(f"{serial_ports[i]}", key=TOGGLE_TE_KEYS[i]) for i in range(len(serial_ports))]
+
+TOGGLE_IE_KEYS = [f"{port}_toggle_ie" for port in serial_ports]
+toggle_ie = [sg.Button(f"{serial_ports[i]}", key=TOGGLE_IE_KEYS[i]) for i in range(len(serial_ports))]
 
 TOGGLE_DC_KEYS = [f"{port}_toggle_dc" for port in serial_ports]
 toggle_dc = [sg.Button(f"{serial_ports[i]}", key=TOGGLE_DC_KEYS[i]) for i in range(len(serial_ports))]
@@ -189,7 +194,7 @@ layout = [[sg.Column(column, element_justification='l', vertical_alignment='t')]
         [sg.Button('[Enter] Send', bind_return_key=True), sg.Button('Clear Figures')],
         [sg.Text("Toggle Reference/Lux Measurements")] + toggle_rl,
         [sg.Text("Toggle Tracking Error Measurements")] + toggle_te,
-        [sg.Text("Toggle Tracking Error Measurements")] + toggle_ie,
+        [sg.Text("Toggle Integral Error Measurements")] + toggle_ie,
         [sg.Text("Toggle Duty-Cycle Measurements")] + toggle_dc,
         [sg.Button('Exit')]
 ]
@@ -200,8 +205,6 @@ _iter = 0
 window.read(timeout=1)
 while True:
     for idx, buffer_queue in enumerate(queues_out):
-        if idx != 0: # skip all but the master
-            continue 
         try:
             while not buffer_queue.empty():
                 data_read_buffers[idx] += buffer_queue.get(block=False)
@@ -211,6 +214,8 @@ while True:
                 for line in data_string.split('\n'):
                     if line:
                         update_str_lst(outputs_str[idx], line)
+                        if idx != 0: # skip all but the master
+                            continue 
                         for command in commands:
                             if line.startswith(command[0]):
                                 args = (line.split(command[0])[1]).split(' ')
@@ -227,8 +232,6 @@ while True:
     
     if _iter % 100 == 0:
         artist.update_figures()
-        if _iter % 1000 == 0:
-            print(f"{_iter = }")
         event, values = window.read(timeout=1)
         if event == sg.TIMEOUT_KEY:
             continue
