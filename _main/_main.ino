@@ -34,6 +34,15 @@ IntFloat intfloat0, intfloat1;
 
 bool acknowledge = false;
 
+char *resetIn300ms()
+{
+    add_alarm_in_ms(
+        300, [](long int, void *) -> long long int
+        { __NVIC_SystemReset(); },
+        NULL, true);
+    ACK
+}
+
 CommandParser parser(
     (Command[]){
     {'a', "<int>", "sets the anti-windup state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setAntiWindup(val); ACK}), NULL},
@@ -77,7 +86,7 @@ CommandParser parser(
     {'O', "<float>", "sets the occupied lower bound lumminance", floatArgCom([](float val){if(val < 0) ERR controller.setOccupiedReference(val); ACK}), NULL},
     {'p', "", "ack", noArgCom([](){ACK}), NULL},
     {'r', "<float>", "sets the reference", floatArgCom([](float reference){if(reference < 0) ERR controller.setReference(reference); ACK}), NULL},
-    {'R', "", "system reset", noArgCom([](){__NVIC_SystemReset(); ACK}), NULL},
+    {'R', "", "system reset", noArgCom(resetIn300ms), NULL},
     {'s', "", "stream variable", NULL, (Command[]){
         {'l', "", "measured lumminance", noArgCom([](){streamLuminance = !streamLuminance; ACK}), NULL},
         {'d', "", "duty cycle", noArgCom([](){streamDuty = !streamDuty; ACK}), NULL},
@@ -113,7 +122,9 @@ void setup() {
     loadParamsStartup();
     // Initialize Serial protocol
     Serial.begin(BAUD_RATE);
+    #ifdef DEBUG
     while(!Serial);
+    #endif
     alarm_pool_init_default();
     DEBUG_PRINT("Gain: %f\n", gain);
     comms.init();
