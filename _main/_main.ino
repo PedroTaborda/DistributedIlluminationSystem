@@ -52,19 +52,19 @@ CommandParser parser(
     {'g', "", "get command", NULL, (Command[]){
         {'a', "", "anti-windup", printfCom("a %d %d\n", myID, controller.getAntiWindup()), NULL},
         {'b', "", "feedback", printfCom("b %d %d\n", myID, controller.getFeedback()), NULL},
-        {'c', "", "current energy cost", notImplemented, NULL},
+        {'c', "", "current energy cost", printfCom("c %d %f\n", myID, consensus.localCost), NULL},
         {'d', "", "duty cycle", printfCom("d %d %f\n", myID, controller.getSample().u), NULL},
         {'e', "", "accumulated energy", printfCom("e %d %f\n", myID, controller.getEnergySpent()), NULL},
         {'f', "", "accumulated flicker error", printfCom("f %d %f\n", myID, controller.getFlickerAccumulator()), NULL},
         {'F', "", "average flicker error", printfCom("f %d %f\n", myID, controller.getFlickerAccumulator() / controller.getSampleNumber()), NULL},
         {'l', "", "measured luminance", printfCom("l %d %f\n", myID, controller.getSample().L), NULL},
-        {'L', "", "luminance lower bound", notImplemented, NULL},
+        {'L', "", "luminance lower bound", printfCom("L %d %f\n", myID, controller.getReference()), NULL},
         {'o', "", "occupancy", printfCom("o %d %d\n", myID, controller.getOccupancy()), NULL},
-        {'O', "", "occupied luminance lower bound", notImplemented, NULL},
+        {'O', "", "occupied luminance lower bound", printfCom("O %d %f\n", myID, controller.getOccupiedReference()), NULL},
         {'p', "", "instantaneous power", printfCom("p %d %f\n", myID, controller.getSample().u), NULL},
         {'r', "", "reference", printfCom("r %d %f\n", myID, controller.getSample().Reference), NULL},
         {'t', "", "time since restart", printfCom("t %d %lu\n", myID, to_ms_since_boot(get_absolute_time()) / 1000), NULL},
-        {'U', "", "unoccupied luminance lower bound", notImplemented, NULL},
+        {'U', "", "unoccupied luminance lower bound", printfCom("U %d %f\n", myID, controller.getUnoccupiedReference()), NULL},
         {'v', "", "accumulated visibility error", printfCom("v %d %f\n", myID, controller.getVisibilityAccumulator()), NULL},
         {'V', "", "average visiblity error", printfCom("f %d %f\n", myID, controller.getVisibilityAccumulator() / controller.getSampleNumber()), NULL},
         {'w', "", "feedforward", printfCom("w %d %d\n", myID, controller.getFeedforward()), NULL},
@@ -73,7 +73,7 @@ CommandParser parser(
     {'h', "", "help", noArgCom(help), NULL},
     {'k', "<int>", "callibrator gain <id> to <id>", intArgCom([](int id) {printI2C("k %d %d %f\n", myID, id, calibrator.getGainId(network.getIndexId(id))) }), NULL},
     {'o', "<int>", "sets the occupancy state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setOccupancy(val); ACK}), NULL},
-    {'O', "<float>", "sets the occupied lower bound lumminance", notImplemented, NULL},
+    {'O', "<float>", "sets the occupied lower bound lumminance", floatArgCom([](float val){if(val < 0) ERR controller.setOccupiedReference(val); ACK}), NULL},
     {'p', "", "ack", noArgCom([](){ACK}), NULL},
     {'r', "<float>", "sets the reference", floatArgCom([](float reference){if(reference < 0) ERR controller.setReference(reference); ACK}), NULL},
     {'R', "", "system reset", noArgCom([](){__NVIC_SystemReset(); ACK}), NULL},
@@ -87,7 +87,7 @@ CommandParser parser(
         {'r', "", "reference", noArgCom([](){streamReference = !streamReference; ACK}), NULL},
         {'\0', "", "", NULL, NULL}}},
     {'t', "", "time", printfCom("t %d %lu\n", myID, millis()), NULL},
-    {'U', "<float>", "sets the unoccupied lower bound lumminance", notImplemented, NULL},
+    {'U', "<float>", "sets the unoccupied lower bound lumminance", floatArgCom([](float val){if(val < 0) ERR controller.setUnoccupiedReference(val); ACK}), NULL},
     {'w', "<int>", "sets the feedforward state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setFeedforward(val); ACK}), NULL},
     {'z', "<float>", "sets the consensus reference on node", floatArgCom([](float reference){consensus.setIlluminanceReference(reference); ACK}), NULL},
     {'\0', "", "", NULL, NULL}
@@ -127,7 +127,7 @@ void setup() {
         comms.calibrateNetwork();
     }
 
-    if(myID == 0) {
+    /*if(myID == 0) {
         consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
                     gains1, exter1);
     } else if(myID == 1) {
@@ -136,7 +136,9 @@ void setup() {
     } else if(myID == 2) {
         consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
                     gains3, exter3);
-    }
+    }*/
+    consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
+                calibrator.getGains(), ambientIlluminance);
     controller.turnControllerOn();
 }
 
@@ -167,31 +169,7 @@ void loop() {
             double *sol = consensus.optimumSolution();
             consensus.updateDiMean(sol);
             consensus.received(myID);
-            //bool seen[network.getNumberNodesNetwork()] = {false};
-            //for(uint8_t i = 0; i < network.getNumberNodesNetwork(); i++) {
-                /*if(seen[i]) continue;
-                uint8_t address = addr_offset + network.getNetwork()[i];
-                Wire.requestFrom(address, 1);
-                while(Wire.available())
-                    seen[i] = Wire.read();
-
-                if(seen[i]) {
-                    Wire.requestFrom(address, sizeof(double) * network.getNumberNodesNetwork() + 1);
-                    double input[network.getNumberNodesNetwork()];
-                    uint8_t *readBuffer = (uint8_t *)&input;
-                    Wire.read();
-                    while(Wire.available()) {
-                        *readBuffer = Wire.read();
-                        readBuffer++;
-                    }
-                    for(uint8_t j = 0; j < network.getNumberNodesNetwork(); j++) {
-                        DEBUG_PRINT("Local d[%hhu] = %lf\n", j, input[j])
-                    }
-                    consensus.updateDiMean(input);
-                }*/
-            /*signed char address = addr_offset + network.getNetwork()[i];
-            DEBUG_PRINT("Sending D to %hhd\n", address)
-            long int t0 = millis();*/
+            
             for(uint8_t j = 0; j < network.getNumberNodesNetwork(); j++) {
                 DEBUG_PRINT("Local d[%hhu] = %lf\n", j, sol[j])
             }
@@ -215,6 +193,9 @@ void loop() {
 void setup1() {
     core1AlarmPool = alarm_pool_create(1, 1);
     controller.setup(0.01, 0.05);
+
+    while(!Serial)
+        DEBUG_PRINT("Kp: %f and Ki: %f\n", controller.getProportionalGain(), controller.getIntegralGain())
 }
 
 void loop1() {

@@ -6,6 +6,7 @@
 #ifndef CONSENSUS_TESTER
 #include <Wire.h>
 #include "comms.hpp"
+#include "controller.hpp"
 #include "globals.hpp"
 #include "network.hpp"
 
@@ -229,6 +230,9 @@ public:
             DEBUG_PRINT("Finished consensus.\n")
             for(uint8_t i = 0; i < nNodes; i++)
                 DEBUG_PRINT("d[%hhu] = %lf\n", i, di[iteration % HOLD_ITERATIONS][i])
+
+            controller.setInnerReference(gain * di[iteration % HOLD_ITERATIONS][myID]);
+            controller.setDutyCycleFeedforward(di[iteration % HOLD_ITERATIONS][myID]);
             setState(CONSENSUS_STATE_NOT_STARTED);
         }
         iteration++;
