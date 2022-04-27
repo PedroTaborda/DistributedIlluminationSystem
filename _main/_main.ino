@@ -51,6 +51,7 @@ CommandParser parser(
         {'l', "", "measured lumminance", getIlluminanceCommand, NULL},
         {'d', "", "duty cycle", getDutyBufferCommand, NULL},
         {'\0', "", "", NULL, NULL}}},
+    {'c', "<float>", "set cost", floatArgCom([](float cost){consensus.setLocalCost(cost); consensus.setIlluminanceReference(controller.getReference()); ACK}), NULL},
     {'C', "", "calibration utilities", NULL, (Command[]){
         {'a', "", "calibrate gamma and tau, save these parameters to EEPROM and activate them", noArgCom(calibrateAutoCommand), NULL},
         {'c', "<bool: gamma> <bool: tau>", "calibrates gamma and/or tau and saves the calibrated parameters", calibrateCommand, NULL},

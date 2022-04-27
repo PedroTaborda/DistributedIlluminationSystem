@@ -39,7 +39,7 @@ void Controller::setup(float proportionalGain, float integralGain) volatile {
     luminanceBuffer.reset();
     dutyBuffer.reset();
     sampleNumber = 0;
-    simulator.initialize(micros(), measureVoltage(10), dutyCycle);
+    simulator.initialize(micros(), measureVoltage(10), l2v(0));
 
     int64_t delayUs = (int64_t)(samplingPeriod * 1e6);
 
@@ -143,7 +143,7 @@ void Controller::update_outputs() volatile {
     newsample.IntegralError = integralError;
     newsample.TrackingError = trackingError;
     newsample.SimulatorValue = simulatorValue;
-    newsample.Reference = reference[occupancy];
+    newsample.Reference = innerReference;
     newsample.num = sampleNumber;
     newsample.u = dutyCycle;
 
@@ -170,11 +170,6 @@ void Controller::update_outputs() volatile {
 }
 
 void Controller::changeSimulatorReference(float reference) volatile {
-    float dutyCycle = (reference - ambientIlluminance) / gain;
-
-    if (dutyCycle > 1.0f) dutyCycle = 1.0f;
-    if (dutyCycle < 0.0f) dutyCycle = 0.0f;
-
     simulator.changeInput(micros(), l2v(reference), measureVoltage(10));
 }
 
@@ -201,7 +196,7 @@ sample_t Controller::getSample() volatile {
     return latest;
 }
 
-float Controller::getReference() volatile { return innerReference; }
+float Controller::getReference() volatile { return reference[occupancy]; }
 
 float Controller::getOccupiedReference() volatile {return reference[1];}
 float Controller::getUnoccupiedReference() volatile {return reference[0];}
