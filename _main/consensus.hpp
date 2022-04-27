@@ -16,11 +16,13 @@ unsigned long millis(){
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
-//#define DEBUG_PRINT(...)     \
+/*
+#define DEBUG_PRINT(...)     \
     {                        \
         printf("[DEBUG]");   \
         printf(__VA_ARGS__); \
     }
+*/
 #define DEBUG_PRINT(...) {}
 constexpr int MAX_DEVICES = 16;
 class NetworkDummy

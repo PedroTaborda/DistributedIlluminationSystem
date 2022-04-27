@@ -10,9 +10,9 @@ void calibrateGain();
 
 void loadParamsStartup();
 
-char *calibrateCommand(const char *args);
+char *calibrateCommand(const char *args, uint8_t dsp);
 
-char *saveCalibrationCommand(const char *args);
+char *saveCalibrationCommand(const char *args, uint8_t dsp);
 
 char *printCalibratedCommand();
 

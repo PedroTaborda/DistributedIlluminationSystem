@@ -308,8 +308,10 @@ extern int myID;
 extern float outBuffer[outBufferSize];
 extern int outBuffer_i;
 
-char *getDutyBufferCommand(const char *args) {
-    (void)args;
+char *getDutyBufferCommand(const char *args, uint8_t dsp)
+{
+    UNUSED(args);
+    UNUSED(dsp);
     static char ret_str[8] = {0};
     controller.getDutyBuffer(outBuffer);
     outBuffer_i = 0;
@@ -317,7 +319,9 @@ char *getDutyBufferCommand(const char *args) {
     return ret_str;
 }
 
-char *getIlluminanceCommand(const char *args) {
+char *getIlluminanceCommand(const char *args, uint8_t dsp)
+{
+    UNUSED(dsp);
     (void)args;
     static char ret_str[8] = {0};
     controller.getIlluminanceBuffer(outBuffer);

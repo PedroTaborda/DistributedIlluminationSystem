@@ -253,8 +253,9 @@ void saveParamsEEPROM(luminaireParams params)
     EEPROM.commit();
 }
 
-char *calibrateCommand(const char *args)
+char *calibrateCommand(const char *args, uint8_t dsp)
 {
+    (void)dsp;
     int doGammaCalibration = 0;
     int doTauCalibration = 0;
     static char ret_str[] = "Calibration successful\n";
@@ -272,8 +273,9 @@ char *calibrateCommand(const char *args)
     return ret_str;
 }
 
-char *saveCalibrationCommand(const char *args)
+char *saveCalibrationCommand(const char *args, uint8_t dsp)
 {
+    (void)dsp;
     int saveGammaCalibration = 0;
     int saveTauCalibration = 0;
     static char retStr[] = "Successfully saved calibration\n";

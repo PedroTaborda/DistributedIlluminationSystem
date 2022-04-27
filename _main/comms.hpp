@@ -116,11 +116,17 @@ extern unsigned int skipSamplesStream;
 // flags for variable streaming
 extern bool streamLuminance;
 extern bool streamDuty;
-extern bool streamSampleTime;
 extern bool streamIntegralError;
 extern bool streamTrackingError;
 extern bool streamSimulator;
 extern bool streamReference;
+
+extern int luminanceStreamDisplayer;
+extern int dutyStreamDisplayer;
+extern int integralErrorStreamDisplayer;
+extern int trackingErrorStreamDisplayer;
+extern int simulatorStreamDisplayer;
+extern int referenceStreamDisplayer;
 
 class Comms
 {

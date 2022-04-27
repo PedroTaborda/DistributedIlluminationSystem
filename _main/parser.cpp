@@ -15,7 +15,7 @@ char *skipID(const char *command)
     return after_luminaire_id;
 }
 
-char *_executeCommand(const char *command, Command *command_list)
+char *_executeCommand(const char *command, Command *command_list, uint8_t displayerID)
 {
     while (isspace(*command))
         command++;
@@ -26,7 +26,7 @@ char *_executeCommand(const char *command, Command *command_list)
             command++;
             if (cur_command->children != NULL)
             {
-                return _executeCommand(command, cur_command->children);
+                return _executeCommand(command, cur_command->children, displayerID);
             }
             else
             {
@@ -37,7 +37,7 @@ char *_executeCommand(const char *command, Command *command_list)
                 }
                 else
                 {
-                    return cur_command->func(after_luminaire_id);
+                    return cur_command->func(after_luminaire_id, displayerID);
                 }
             }
         }
@@ -112,9 +112,9 @@ CommandParser::CommandParser(Command *command_list) : command_list(command_list)
 
 /* Returns true if there is a matching command (and executes it)
  */
-char *CommandParser::executeCommand(const char *command) volatile
+char *CommandParser::executeCommand(const char *command, uint8_t displayerID) volatile
 {
-    return _executeCommand(command, command_list);
+    return _executeCommand(command, command_list, displayerID);
 }
 
 /* Retrieves luminaire ID from command string, and returns it.

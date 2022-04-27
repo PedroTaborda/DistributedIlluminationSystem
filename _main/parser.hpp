@@ -1,12 +1,15 @@
 #ifndef PARSER_HPP
 #define PARSER_HPP
 
-#define UNUSED(x) (void)(x) // removes unused parameter warning - useful when intentional
-#define noArgCom(funcNoArgs) [](const char *args) -> char * { UNUSED(args); return funcNoArgs(); }
+#include "stdint.h"
 
-#define floatArgCom(funcFloatArg) [](const char *args) -> char * { return funcFloatArg(atof(args)); }
-#define intArgCom(funcIntArg) [](const char *args) -> char * { return funcIntArg(atoi(args)); }
-#define boolArgCom(funcBoolArg) [](const char *args) -> char * { return funcBoolArg(atoi(args)); }
+#define UNUSED(x) (void)(x) // removes unused parameter warning - useful when intentional
+#define noArgCom(funcNoArgs) [](const char *args, uint8_t dsp) -> char * { UNUSED(args); UNUSED(dsp); return funcNoArgs(); }
+
+#define floatArgCom(funcFloatArg) [](const char *args, uint8_t dsp) -> char * { UNUSED(dsp); return funcFloatArg(atof(args)); }
+#define intArgCom(funcIntArg) [](const char *args, uint8_t dsp) -> char * { UNUSED(dsp); return funcIntArg(atoi(args)); }
+#define boolArgCom(funcBoolArg) [](const char *args, uint8_t dsp) -> char * { UNUSED(dsp); return funcBoolArg(atoi(args)); }
+#define idArgCom(funcIdArg) [](const char *args, uint8_t dsp) -> char * { UNUSED(args); return funcIdArg(dsp); }
 
 #define printI2C(...) {static char print_buf[128]; snprintf(print_buf, 128, __VA_ARGS__); return print_buf; }
 
@@ -30,7 +33,7 @@ struct Command
     char identifier;
     const char *usage_format;
     const char *help_text;
-    char *(*func)(const char *);
+    char *(*func)(const char *, uint8_t);
     Command *children;
 };
 
@@ -40,7 +43,7 @@ public:
     CommandParser(){command_list = nullptr;};
     CommandParser(Command *command_list);
 
-    char *executeCommand(const char *command) volatile;
+    char *executeCommand(const char *command, uint8_t displayerID) volatile;
 
     const char *strip(const char *command) volatile;
 

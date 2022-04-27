@@ -7,6 +7,17 @@
 #include "parser.hpp"
 #include <Wire.h>
 
+#define SEND_STREAM_MSG(addr, cmdChar, varFloat, tUnsignedLong, ret)          \
+    {                                                                         \
+        SEND_MSG(                                                             \
+            addr, RETRY_TIMEOUT_MS,                                           \
+            Wire.write(MSG_TYPE_STREAM);                                      \
+            Wire.write(cmdChar);                                              \
+            Wire.write((uint8_t *)&varFloat, sizeof(float));                  \
+            Wire.write((uint8_t *)&tUnsignedLong, sizeof(unsigned long));,    \
+                                                                         ret) \
+    }
+
 volatile Comms* _comms;
 int asked = 1;
 
@@ -15,12 +26,22 @@ bool receivingBuffer = false;
 unsigned int skipSamplesStream = 4;
 
 bool streamLuminance = false;
+int luminanceStreamDisplayer = 0;
+
 bool streamDuty = false;
-bool streamSampleTime = false;
+int dutyStreamDisplayer = 0;
+
 bool streamIntegralError = false;
+int integralErrorStreamDisplayer = 0;
+
 bool streamTrackingError = false;
+int trackingErrorStreamDisplayer = 0;
+
 bool streamSimulator = false;
+int simulatorStreamDisplayer = 0;
+
 bool streamReference = false;
+int referenceStreamDisplayer = 0;
 
 void Comms::init() volatile
 {
@@ -146,9 +167,9 @@ ProcessingResult Comms::processCommand(const char *command) volatile
     char *commandRet = NULL;
 
     //Serial.printf("My id: %d, luminaire id: %d\n", my_id, luminaireID);
-    if (luminaireID == my_id)
+    if (luminaireID == myID)
     {
-        commandRet = parser.executeCommand(command);
+        commandRet = parser.executeCommand(command, myID);
         Serial.println(commandRet == NULL ? "NULL" : commandRet);
         return commandRet == NULL ? PROCESSING_LOCAL_EXECUTION_FAILURE : PROCESSING_OK;
     }
@@ -237,61 +258,75 @@ void Comms::streamVars() volatile{
     sample_t newSample = controller.getSample();
     int ret=0;
 
+
+    float var = 0.0;
+    unsigned long t = 0;
+    unsigned char cmd = '_';
     if(streamDuty){
-        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s d %d %.4f %.3lf", myID, newSample.u, ((double)newSample.time) / 1000);
-        SEND_MSG(0, RETRY_TIMEOUT_MS,
-            Wire.write(MSG_TYPE_REPLY);
-            Wire.write((char *)streamVarsBuffer);,
-        ret
-        )
+        DEBUG_PRINT("Streaming duty cycle to %d\n", dutyStreamDisplayer);
+        if (dutyStreamDisplayer == myID)
+            Serial.printf("s d %d %.4f %llu\n", myID, newSample.u, newSample.time / 1000);
+        else{
+            var = (float) newSample.u;
+            t = (unsigned long)(newSample.time/1000);
+            cmd = 'd';
+            SEND_STREAM_MSG(dutyStreamDisplayer + addr_offset, cmd, var, t, ret)
+        }
     }
     if(streamLuminance){
-        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s l %d %.4f %.3lf", myID, newSample.L, ((double)newSample.time) / 1000);
-        SEND_MSG(0, RETRY_TIMEOUT_MS,
-            Wire.write(MSG_TYPE_REPLY);
-            Wire.write((char *)streamVarsBuffer);,
-        ret
-        )
-    }
-    if(streamSampleTime){
-        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s T %d %.3lf", myID, ((double)newSample.time) / 1000.0);
-        SEND_MSG(0, RETRY_TIMEOUT_MS,
-            Wire.write(MSG_TYPE_REPLY);
-            Wire.write((char *)streamVarsBuffer);,
-        ret
-        )
+        DEBUG_PRINT("Streaming luminance to %d [s l %d %.4f %llu]\n", luminanceStreamDisplayer, myID, newSample.L, newSample.time / 1000);
+        if (luminanceStreamDisplayer == myID)
+            Serial.printf("s l %d %.4f %llu\n", myID, newSample.L, newSample.time / 1000);
+        else{
+            var = (float) newSample.L;
+            t = (unsigned long)(newSample.time/1000);
+            cmd = 'l';
+            SEND_STREAM_MSG(luminanceStreamDisplayer + addr_offset, cmd, var, t, ret)
+        }
     }
     if(streamIntegralError){
-        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s i %d %.4f %.3lf", myID, newSample.IntegralError, ((double)newSample.time) / 1000.0);
-        SEND_MSG(0, RETRY_TIMEOUT_MS,
-            Wire.write(MSG_TYPE_REPLY);
-            Wire.write((char *)streamVarsBuffer);,
-        ret
-        )
+        DEBUG_PRINT("Streaming integral error to %d\n", integralErrorStreamDisplayer);
+        if (integralErrorStreamDisplayer == myID)
+            Serial.printf("s i %d %.4f %llu\n", myID, newSample.IntegralError, newSample.time / 1000);
+        else{
+            var = (float) newSample.IntegralError;
+            t = (unsigned long)(newSample.time/1000);
+            cmd = 'i';
+            SEND_STREAM_MSG(integralErrorStreamDisplayer + addr_offset, cmd, var, t, ret)
+        }
     }
     if(streamTrackingError){
-        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s t %d %.4f %.3lf", myID, newSample.TrackingError, ((double)newSample.time) / 1000.0);
-        SEND_MSG(0, RETRY_TIMEOUT_MS,
-            Wire.write(MSG_TYPE_REPLY);
-            Wire.write((char *)streamVarsBuffer);,
-        ret
-        )
+        DEBUG_PRINT("Streaming tracking error to %d\n", trackingErrorStreamDisplayer);
+        if (trackingErrorStreamDisplayer == myID)
+            Serial.printf("s t %d %.4f %llu\n", myID, newSample.TrackingError, newSample.time / 1000);
+        else{
+            var = (float) newSample.TrackingError;
+            t = (unsigned long)(newSample.time/1000);
+            cmd = 't';
+            SEND_STREAM_MSG(trackingErrorStreamDisplayer + addr_offset, cmd, var, t, ret)
+        }
     }
     if(streamSimulator){
-        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s s %d %.4f %.3lf", myID, newSample.SimulatorValue, ((double)newSample.time) / 1000.0);
-        SEND_MSG(0, RETRY_TIMEOUT_MS,
-            Wire.write(MSG_TYPE_REPLY);
-            Wire.write((char *)streamVarsBuffer);,
-        ret
-        )
+        DEBUG_PRINT("Streaming simulator to %d\n", simulatorStreamDisplayer);
+        if (simulatorStreamDisplayer == myID)
+            Serial.printf("s s %d %.4f %llu\n", myID, newSample.SimulatorValue, newSample.time / 1000);
+        else{
+            var = (float) newSample.SimulatorValue;
+            t = (unsigned long)(newSample.time/1000);
+            cmd = 's';
+            SEND_STREAM_MSG(simulatorStreamDisplayer + addr_offset, cmd, var, t, ret)
+        }
     }
     if(streamReference){
-        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s r %d %.4f %.3lf", myID, newSample.Reference, ((double)newSample.time) / 1000.0);
-        SEND_MSG(0, RETRY_TIMEOUT_MS,
-            Wire.write(MSG_TYPE_REPLY);
-            Wire.write((char *)streamVarsBuffer);,
-        ret
-        )
+        DEBUG_PRINT("Streaming reference to %d\n", referenceStreamDisplayer);
+        if (referenceStreamDisplayer == myID)
+            Serial.printf("s r %d %.4f %llu\n", myID, newSample.Reference, newSample.time / 1000);
+        else{
+            var = (float) newSample.Reference;
+            t = (unsigned long)(newSample.time/1000);
+            cmd = 'r';
+            SEND_STREAM_MSG(referenceStreamDisplayer + addr_offset, cmd, var, t, ret)
+        }
     }
 
 }
@@ -314,16 +349,22 @@ void Comms::processReceivedData() volatile
         return;
 
     processedMessageCounter += 1;
-    DEBUG_PRINT("Received message = %li, Processeced received message = %li\n", messageCounter, processedMessageCounter)
+    DEBUG_PRINT("Received message = %li, Processed received message = %li\n", messageCounter, processedMessageCounter)
 
     int ret;
     char *commandRet = NULL;
+    
+    uint8_t streamer = 0;
+    unsigned char cmd = '_';
+    float var = 0.0;
+    unsigned long t = 0;
+
     switch (receivedMsg)
     {
     // If a command was issued to me, I will execute it and reply with the result.
     case MSG_TYPE_COMMAND:
-        commandRet = parser.executeCommand((const char *)(receivedDataBuffer + 1));
-        SEND_MSG(0, RETRY_TIMEOUT_MS,
+        commandRet = parser.executeCommand((const char *)(receivedDataBuffer + 1), receivedDataBuffer[0]);
+        SEND_MSG(receivedDataBuffer[0]+addr_offset, RETRY_TIMEOUT_MS,
             Wire.write(MSG_TYPE_REPLY_RAW);
             Wire.write(commandRet);,
         ret)
@@ -331,12 +372,18 @@ void Comms::processReceivedData() volatile
         break;
 
     // If a reply is coming my way, I will relay it to the Serial interface.
-    // Same for stream.
     case MSG_TYPE_REPLY:
-    case MSG_TYPE_STREAM:
         Serial.printf("%s\n", receivedDataBuffer + 1);
         DEBUG_PRINT("Received MSG_TYPE_REPLY/STREAM\n")
         break; 
+    // Unpack stream message and relay it to the Serial interface.
+    case MSG_TYPE_STREAM:
+        streamer = receivedDataBuffer[0];
+        cmd = receivedDataBuffer[1];
+        var = *((float *)(receivedDataBuffer + 2));
+        t = *((unsigned long *)(receivedDataBuffer + 2 + sizeof(float)));
+        Serial.printf("s %c %d %.4f %lu\n", cmd, streamer, var, t);
+        break;
     // If a raw reply is coming my way, I will relay it exactly to the Serial interface.
     case MSG_TYPE_REPLY_RAW:
         Serial.printf("%s", receivedDataBuffer + 1);

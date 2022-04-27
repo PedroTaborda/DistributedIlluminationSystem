@@ -161,8 +161,8 @@ extern volatile Controller controller;
 
 // Communication functions
 
-char *getDutyBufferCommand(const char *args);
+char *getDutyBufferCommand(const char *args, uint8_t dsp);
 
-char *getIlluminanceCommand(const char *args);
+char *getIlluminanceCommand(const char *args, uint8_t dsp);
 
 #endif  // CONTROLLER_HPP
