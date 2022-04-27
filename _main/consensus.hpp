@@ -85,25 +85,23 @@ public:
     }
 
     void setIlluminanceReference(double lumminanceReference) {
-        if(li != lumminanceReference) {
-            li = lumminanceReference;
-            setState(CONSENSUS_STATE_COMPUTING_LOCAL);
+        li = lumminanceReference;
+        setState(CONSENSUS_STATE_COMPUTING_LOCAL);
 
-            for(uint8_t i = 0; i < network.getNumberNodesNetwork(); i++)
-            {
-                if(network.getNetwork()[i] == myID) continue;
-                signed char address = addr_offset + network.getNetwork()[i];
-                int ret;
-                SEND_MSG(address, RETRY_TIMEOUT_MS,
-                    Wire.write(MSG_TYPE_CONSENSUS_START);,
-                ret)
-            }
-
-            resetDiMean();
-            resetDi();
-            resetIteration();
-            initLagrangeMultipliers();
+        for(uint8_t i = 0; i < network.getNumberNodesNetwork(); i++)
+        {
+            if(network.getNetwork()[i] == myID) continue;
+            signed char address = addr_offset + network.getNetwork()[i];
+            int ret;
+            SEND_MSG(address, RETRY_TIMEOUT_MS,
+                Wire.write(MSG_TYPE_CONSENSUS_START);,
+            ret)
         }
+
+        resetDiMean();
+        resetDi();
+        resetIteration();
+        initLagrangeMultipliers();
     }
 
     void setLocalCost(double cost) {

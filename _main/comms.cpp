@@ -86,7 +86,7 @@ bool Comms::joinNetwork() volatile
             } while(successfulRegister == false);
 
             for(uint8_t i = 0; i < network.getNumberNodesNetwork(); i++) {
-                DEBUG_PRINT("%hhuth member of the network is %hhu\n", i, network.getNetwork()[i])
+                DEBUG_PRINT("%hhuth member of the network is %hhu\n", i + 1, network.getNetwork()[i])
             }
 
             if(my_id == 0)
