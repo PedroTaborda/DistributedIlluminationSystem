@@ -143,7 +143,7 @@ void Controller::update_outputs() volatile {
     newsample.IntegralError = integralError;
     newsample.TrackingError = trackingError;
     newsample.SimulatorValue = simulatorValue;
-    newsample.Reference = reference[occupancy];
+    newsample.Reference = innerReference;
     newsample.num = sampleNumber;
     newsample.u = dutyCycle;
 
@@ -196,7 +196,7 @@ sample_t Controller::getSample() volatile {
     return latest;
 }
 
-float Controller::getReference() volatile { return innerReference; }
+float Controller::getReference() volatile { return reference[occupancy]; }
 
 float Controller::getOccupiedReference() volatile {return reference[1];}
 float Controller::getUnoccupiedReference() volatile {return reference[0];}
