@@ -239,7 +239,7 @@ void Comms::streamVars() volatile{
     int ret=0;
 
     if(streamDuty){
-        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s d %d %.4f %llu", myID, newSample.u, ((double)newSample.time) / 1000);
+        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s d %d %.4f %.3lf", myID, newSample.u, ((double)newSample.time) / 1000);
         SEND_MSG(0, RETRY_TIMEOUT_MS,
             Wire.write(MSG_TYPE_REPLY);
             Wire.write((char *)streamVarsBuffer);,
