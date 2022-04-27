@@ -103,16 +103,10 @@ bool Comms::joinNetwork() volatile
 }
 
 void Comms::calibrateNetwork() volatile{
-    // Warn everybody calibration is starting
     int ret;
-    SEND_MSG(0, RETRY_TIMEOUT_MS,
-        Wire.write(MSG_TYPE_BEGIN_CALIBRATION);,
-    ret)
     // Become the maestro
     calibrator.becomeMaestro();
     DEBUG_PRINT("Calibration starting.\n");
-    // After the highest id has been found, order everyone to calibrate,
-    // in order.
     for(signed char i = 0; i < network.getNumberNodesNetwork(); i++) {
         // Order luminaire i to run its calibration cycle. Also
         // lets the other luminaires know that i is about to run
@@ -368,22 +362,6 @@ void Comms::processReceivedData() volatile
             calibrator.resetWait();
         }
         DEBUG_PRINT("Received MSG_TYPE_ANNOUNCE_ID\n")
-        break;
-
-    case MSG_TYPE_BEGIN_CALIBRATION:
-        /*Serial.printf("Received begin calibration signal.\n");
-        // The maestro ignores its own calls to calibrate
-        if(!calibrator.isMaestro()) {
-            // Broadcast our id so the highest id can be determined
-            SEND_MSG(0, RETRY_TIMEOUT_MS,
-                Wire.write(MSG_TYPE_FIND_HIGHEST_ID);
-                Wire.write(my_id);,
-            ret)
-        } else {
-            calibrator.setHighestId(my_id);
-            calibrator.resetWaitId();
-        }*/
-        DEBUG_PRINT("Received MSG_TYPE_BEGIN_CALIBRATION\n")
         break;
 
     case MSG_TYPE_ROLL_CALL:
