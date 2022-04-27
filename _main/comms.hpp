@@ -20,6 +20,20 @@
             DEBUG_PRINT("===========TIMEOUT===========\n")      \
     }
 
+#define SEND_MSG_HOLD(addr, timeout_ms, WRITE_STATEMENTS, ret)  \
+    {                                                           \
+        long t0 = millis();                                     \
+        do                                                      \
+        {                                                       \
+            Wire.beginTransmission(addr);                       \
+            Wire.write(myID);                                   \
+            WRITE_STATEMENTS                                    \
+            ret = Wire.endTransmission(false);                   \
+        } while ((ret) && ((millis() - t0) < timeout_ms));      \
+        if((millis() - t0) >= timeout_ms)                       \
+            DEBUG_PRINT("===========TIMEOUT===========\n")      \
+    }
+
 #ifdef ZE
 const int SDA_MASTER_PIN = 0;
 const int SCL_MASTER_PIN = 1;
@@ -88,8 +102,8 @@ inline constexpr unsigned long TIMEOUT_MS = 20;
 inline constexpr unsigned int RETRY_MULTIPLIER = 10;
 inline constexpr unsigned long RETRY_TIMEOUT_MS = RETRY_MULTIPLIER * TIMEOUT_MS;
 inline constexpr unsigned long CONSENSUS_RETRY_TIMEOUT_MS = 10 * RETRY_MULTIPLIER * TIMEOUT_MS;
-inline constexpr unsigned long VERIFY_WAIT_MS = 100;
-inline constexpr unsigned long ROLL_CALL_WAIT_MS = 100;
+inline constexpr unsigned long VERIFY_WAIT_MS = 500;
+inline constexpr unsigned long ROLL_CALL_WAIT_MS = 500;
 inline constexpr signed char addr_offset = 8;
 inline constexpr unsigned long MESSAGE_SLACK_WAIT_MS = 500;
 
