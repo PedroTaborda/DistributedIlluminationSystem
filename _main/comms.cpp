@@ -239,7 +239,7 @@ void Comms::streamVars() volatile{
     int ret=0;
 
     if(streamDuty){
-        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s d %d %.4f %llu", myID, newSample.u, newSample.time);
+        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s d %d %.4f %llu", myID, newSample.u, ((double)newSample.time) / 1000);
         SEND_MSG(0, RETRY_TIMEOUT_MS,
             Wire.write(MSG_TYPE_REPLY);
             Wire.write((char *)streamVarsBuffer);,
@@ -247,7 +247,7 @@ void Comms::streamVars() volatile{
         )
     }
     if(streamLuminance){
-        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s l %d %.4f %llu", myID, newSample.L, newSample.time);
+        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s l %d %.4f %.3lf", myID, newSample.L, ((double)newSample.time) / 1000);
         SEND_MSG(0, RETRY_TIMEOUT_MS,
             Wire.write(MSG_TYPE_REPLY);
             Wire.write((char *)streamVarsBuffer);,
@@ -255,7 +255,7 @@ void Comms::streamVars() volatile{
         )
     }
     if(streamSampleTime){
-        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s T %d %llu", myID, newSample.time);
+        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s T %d %.3lf", myID, ((double)newSample.time) / 1000.0);
         SEND_MSG(0, RETRY_TIMEOUT_MS,
             Wire.write(MSG_TYPE_REPLY);
             Wire.write((char *)streamVarsBuffer);,
@@ -263,7 +263,7 @@ void Comms::streamVars() volatile{
         )
     }
     if(streamIntegralError){
-        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s i %d %.4f %llu", myID, newSample.IntegralError, newSample.time);
+        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s i %d %.4f %.3lf", myID, newSample.IntegralError, ((double)newSample.time) / 1000.0);
         SEND_MSG(0, RETRY_TIMEOUT_MS,
             Wire.write(MSG_TYPE_REPLY);
             Wire.write((char *)streamVarsBuffer);,
@@ -271,7 +271,7 @@ void Comms::streamVars() volatile{
         )
     }
     if(streamTrackingError){
-        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s t %d %.4f %llu", myID, newSample.TrackingError, newSample.time);
+        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s t %d %.4f %.3lf", myID, newSample.TrackingError, ((double)newSample.time) / 1000.0);
         SEND_MSG(0, RETRY_TIMEOUT_MS,
             Wire.write(MSG_TYPE_REPLY);
             Wire.write((char *)streamVarsBuffer);,
@@ -279,7 +279,7 @@ void Comms::streamVars() volatile{
         )
     }
     if(streamSimulator){
-        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s s %d %.4f %llu", myID, newSample.SimulatorValue, newSample.time);
+        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s s %d %.4f %.3lf", myID, newSample.SimulatorValue, ((double)newSample.time) / 1000.0);
         SEND_MSG(0, RETRY_TIMEOUT_MS,
             Wire.write(MSG_TYPE_REPLY);
             Wire.write((char *)streamVarsBuffer);,
@@ -287,7 +287,7 @@ void Comms::streamVars() volatile{
         )
     }
     if(streamReference){
-        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s r %d %.4f %llu", myID, newSample.Reference, newSample.time);
+        snprintf((char *)streamVarsBuffer, MSG_BUFFER_SIZE, "s r %d %.4f %.3lf", myID, newSample.Reference, ((double)newSample.time) / 1000.0);
         SEND_MSG(0, RETRY_TIMEOUT_MS,
             Wire.write(MSG_TYPE_REPLY);
             Wire.write((char *)streamVarsBuffer);,
