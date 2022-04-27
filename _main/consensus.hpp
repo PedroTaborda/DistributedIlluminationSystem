@@ -16,11 +16,12 @@ unsigned long millis(){
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
-#define DEBUG_PRINT(...)     \
+//#define DEBUG_PRINT(...)     \
     {                        \
         printf("[DEBUG]");   \
         printf(__VA_ARGS__); \
     }
+#define DEBUG_PRINT(...) {}
 constexpr int MAX_DEVICES = 16;
 class NetworkDummy
 {
@@ -50,7 +51,7 @@ constexpr double TOL = 1e-4;
 constexpr double maxDutyCycle = 1.0;
 constexpr double minDutyCycle = 0.0;
 
-inline constexpr int HOLD_ITERATIONS = 2;
+constexpr int HOLD_ITERATIONS = 2;
 
 enum ConsensusState
 {
@@ -231,8 +232,10 @@ public:
             for(uint8_t i = 0; i < nNodes; i++)
                 DEBUG_PRINT("d[%hhu] = %lf\n", i, di[iteration % HOLD_ITERATIONS][i])
 
+#ifndef CONSENSUS_TESTER
             controller.setInnerReference(dot(nNodes, ki, di[iteration % HOLD_ITERATIONS]));
             controller.setDutyCycleFeedforward(di[iteration % HOLD_ITERATIONS][myID]);
+#endif
             setState(CONSENSUS_STATE_NOT_STARTED);
         }
         iteration++;
