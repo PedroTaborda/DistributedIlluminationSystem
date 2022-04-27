@@ -20,11 +20,11 @@ Simulator::Simulator()
     }
 }
 
-void Simulator::initialize(uint64_t initialTime, double initialVoltage, double initialDuty) volatile
+void Simulator::initialize(uint64_t initialTime, double initialVoltage, double finalVoltage) volatile
 {
     currentInitialTime = initialTime;
     currentInitialVoltage = initialVoltage;
-    currentInitialDuty = initialDuty;
+    currentFinalVoltage = finalVoltage;
 }
 
 double Simulator::getLuminosity(uint64_t time) volatile{
@@ -33,15 +33,8 @@ double Simulator::getLuminosity(uint64_t time) volatile{
     double timeSinceSwitch = (double)(time - currentInitialTime);
     timeSinceSwitch /= 1e6;
 
-    // Determine the illumination associated to the current duty cycle, using the system's static
-    // gain.
-    double predictedFinalLux = gain * currentInitialDuty + ambientIlluminance;
-
-    // Convert the predicted illumination into a predicted steady state voltage.
-    double predictedFinalVoltage = luxToVoltage(predictedFinalLux);
-    
     // Predict the current voltage using a first order model.
-    double predictedVoltage = predictedFinalVoltage - (predictedFinalVoltage - currentInitialVoltage)
+    double predictedVoltage = currentFinalVoltage - (currentFinalVoltage - currentInitialVoltage)
                              * exp(-timeSinceSwitch/currentTimeConstant);
 
     // Use that predicted voltage to predict current luminosity measurement.
@@ -50,11 +43,10 @@ double Simulator::getLuminosity(uint64_t time) volatile{
     return predictedLux;
 }
 
-void Simulator::changeInput(uint64_t time, double duty, double currentVoltage) volatile{
+void Simulator::changeInput(uint64_t time, double goalVoltage, double currentVoltage) volatile{
     currentInitialTime = time;
     currentInitialVoltage = currentVoltage;
-    currentTimeConstant = timeConstant(currentVoltage, l2v(d2l(duty)));
-    currentInitialDuty = duty;
+    currentTimeConstant = timeConstant(currentVoltage, goalVoltage);
 }
 
 double Simulator::voltageToLux(double voltage) volatile{

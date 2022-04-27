@@ -176,7 +176,7 @@ void Controller::changeSimulatorReference(float reference) volatile {
     if (dutyCycle > 1.0f) dutyCycle = 1.0f;
     if (dutyCycle < 0.0f) dutyCycle = 0.0f;
 
-    simulator.changeInput(micros(), dutyCycle, measureVoltage(10));
+    simulator.changeInput(micros(), l2v(reference), measureVoltage(10));
 }
 
 // Interface functions to be accessed by messenger core
