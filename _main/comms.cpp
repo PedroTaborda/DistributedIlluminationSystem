@@ -40,7 +40,7 @@ bool Comms::joinNetwork() volatile
     int ret;
     for (int my_potential_addr = my_id + addr_offset; my_potential_addr < 128; my_potential_addr++)
     {
-        SEND_MSG(my_potential_addr, RETRY_TIMEOUT_MS, ,ret)
+        SEND_MSG_HOLD(my_potential_addr, RETRY_TIMEOUT_MS, ,ret)
         DEBUG_PRINT("Address %d done: ret = %d\n", my_potential_addr, ret)
 
         // If no one was at the address being probed, it is now
