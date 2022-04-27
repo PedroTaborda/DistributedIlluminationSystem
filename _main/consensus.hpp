@@ -231,7 +231,7 @@ public:
             for(uint8_t i = 0; i < nNodes; i++)
                 DEBUG_PRINT("d[%hhu] = %lf\n", i, di[iteration % HOLD_ITERATIONS][i])
 
-            controller.setInnerReference(gain * di[iteration % HOLD_ITERATIONS][myID]);
+            controller.setInnerReference(dot(nNodes, ki, di[iteration % HOLD_ITERATIONS]));
             controller.setDutyCycleFeedforward(di[iteration % HOLD_ITERATIONS][myID]);
             setState(CONSENSUS_STATE_NOT_STARTED);
         }
