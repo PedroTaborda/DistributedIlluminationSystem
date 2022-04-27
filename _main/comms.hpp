@@ -88,8 +88,8 @@ inline constexpr unsigned long TIMEOUT_MS = 20;
 inline constexpr unsigned int RETRY_MULTIPLIER = 10;
 inline constexpr unsigned long RETRY_TIMEOUT_MS = RETRY_MULTIPLIER * TIMEOUT_MS;
 inline constexpr unsigned long CONSENSUS_RETRY_TIMEOUT_MS = 10 * RETRY_MULTIPLIER * TIMEOUT_MS;
-inline constexpr unsigned long VERIFY_WAIT_MS = 100;
-inline constexpr unsigned long ROLL_CALL_WAIT_MS = 100;
+inline constexpr unsigned long VERIFY_WAIT_MS = 500;
+inline constexpr unsigned long ROLL_CALL_WAIT_MS = 500;
 inline constexpr signed char addr_offset = 8;
 inline constexpr unsigned long MESSAGE_SLACK_WAIT_MS = 500;
 
@@ -97,6 +97,8 @@ typedef uint8_t messageData[receivedDataBufferSize];
 
 extern bool receivingBuffer;
 
+
+extern unsigned int skipSamplesStream;
 // flags for variable streaming
 extern bool streamLuminance;
 extern bool streamDuty;

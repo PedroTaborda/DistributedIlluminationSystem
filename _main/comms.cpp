@@ -12,6 +12,8 @@ int asked = 1;
 
 bool receivingBuffer = false;
 
+unsigned int skipSamplesStream = 4;
+
 bool streamLuminance = false;
 bool streamDuty = false;
 bool streamSampleTime = false;
@@ -230,7 +232,10 @@ void Comms::flushError() volatile{
 
 void Comms::streamVars() volatile{
     int sampleNum = controller.getSampleNumber();
-    if (lastSampleStreamed == sampleNum)
+
+    if (sampleNum == 0)
+        return;
+    if (sampleNum <= lastSampleStreamed + (int)skipSamplesStream)
         return;
 
     lastSampleStreamed = sampleNum;
