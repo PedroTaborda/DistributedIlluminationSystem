@@ -116,7 +116,7 @@ class Artist:
         self.DC_lines[idx].set_data(self.DC_t[idx], self.DC[idx])
 
 
-serial_ports = ['COM3', 'COM4', 'COM5']
+serial_ports = ['COM4', 'COM5', 'COM6']
 
 artist = Artist(serial_ports)
 artist.setup_figures()
@@ -133,7 +133,7 @@ commands = (
 QUEUE_SIZE = 1000
 
 input_height = 5
-output_height = 10
+output_height = 7
 
 inputs_str = [""]*input_height
 outputs_str = [[""]*output_height for _ in range(len(serial_ports))]
