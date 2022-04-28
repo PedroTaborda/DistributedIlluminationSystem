@@ -404,11 +404,18 @@ void Comms::processReceivedData() volatile
     // In case someone has just woken up and I'm id=0, I'll see if we're waiting
     // to start calibration. If yes, reset the counter back to the start.
     case MSG_TYPE_ANNOUNCE_ID:
-        network.addNodeToNetwork(receivedDataBuffer[1]);
-        if(my_id == 0 && calibrator.waiting()) {
-            calibrator.resetWait();
+        if(receivedDataBuffer[0] != myID && receivedDataBuffer[1] == myID) {
+            delay(abs(random() % 100));
+            joinNetwork();
+            DEBUG_PRINT("Received MSG_TYPE_ANNOUNCE_ID with same ID. Rejoined\n")
         }
-        DEBUG_PRINT("Received MSG_TYPE_ANNOUNCE_ID\n")
+        else {
+            network.addNodeToNetwork(receivedDataBuffer[1]);
+            if(my_id == 0 && calibrator.waiting()) {
+                calibrator.resetWait();
+            }
+            DEBUG_PRINT("Received MSG_TYPE_ANNOUNCE_ID\n")
+        }
         break;
 
     case MSG_TYPE_ROLL_CALL:

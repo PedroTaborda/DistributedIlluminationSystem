@@ -3,6 +3,7 @@
 #include <Wire.h>
 // #include <hardware/dma.h>
 #include <pico/stdlib.h>
+#include <pico/unique_id.h>
 
 #include "calibration.hpp"
 #include "comms.hpp"
@@ -29,10 +30,7 @@ int outBuffer_i = outBufferSize;  // >= outBufferSize means no transfer to be do
 alarm_pool_t* core1AlarmPool;
 
 int myID = 0;
-
-IntFloat intfloat0, intfloat1;
-
-bool acknowledge = false;
+extern volatile Comms comms;
 
 char *resetIn300ms()
 {
@@ -41,6 +39,24 @@ char *resetIn300ms()
         { __NVIC_SystemReset(); },
         NULL, true);
     ACK
+}
+
+void recallibrateNetwork() {
+    controller.turnControllerOff();
+    comms.calibrateNetwork();
+    consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
+                calibrator.getGains(), ambientIlluminance);
+    controller.turnControllerOn();
+}
+
+char* printStaticGains() {
+    static char buffer[256];
+    buffer[0] = '\0';
+    sprintf(buffer + strlen(buffer), "k %d", myID);
+    for(uint8_t i = 0; i < network.getNumberNodesNetwork(); i++)
+        sprintf(buffer + strlen(buffer), " %f", calibrator.getGainId(i));
+    sprintf(buffer + strlen(buffer), "\n");
+    return buffer;
 }
 
 CommandParser parser(
@@ -55,7 +71,10 @@ CommandParser parser(
     {'C', "", "calibration utilities", NULL, (Command[]){
         {'a', "", "calibrate gamma and tau, save these parameters to EEPROM and activate them", noArgCom(calibrateAutoCommand), NULL},
         {'c', "<bool: gamma> <bool: tau>", "calibrates gamma and/or tau and saves the calibrated parameters", calibrateCommand, NULL},
+        {'k', "<int>", "static gain of <id> to <id>", intArgCom([](int id) {printI2C("k %d %d %f\n", myID, id, calibrator.getGainId(network.getIndexId(id))) }), NULL},
+        {'K', "", "static gains to <id>", noArgCom(printStaticGains), NULL},
         {'s', "<bool: gamma> <bool: tau>", "saves gamma and/or tau from calibrated parameters as final (writes to EEPROM)", saveCalibrationCommand, NULL},
+        {'S', "", "recallibrates the static gains", noArgCom([]() { ACK}), NULL},
         {'p', "", "print latest calibrated parameters and active parameters", noArgCom(printCalibratedCommand), NULL},
         {'\0', "", "", NULL, NULL}}},
     {'d', "<float>", "sets the duty cycle", floatArgCom([](float duty){if(duty < 0 || duty > 1) ERR controller.setDutyCycle(duty); ACK}), NULL},
@@ -81,7 +100,6 @@ CommandParser parser(
         {'x', "", "external luminance", printfCom("x %d %f\n", myID, controller.getSample().L - gain * controller.getSample().u), NULL},
         {'\0', "", "", NULL, NULL}}},
     {'h', "", "help", noArgCom(help), NULL},
-    {'k', "<int>", "callibrator gain <id> to <id>", intArgCom([](int id) {printI2C("k %d %d %f\n", myID, id, calibrator.getGainId(network.getIndexId(id))) }), NULL},
     {'m', "<bool>", "set simulator", boolArgCom([](bool newSimState){controller.setSimulator(newSimState); ACK}), NULL},
     {'o', "<int>", "sets the occupancy state", intArgCom([](int val){if(val < 0 || val > 1) ERR controller.setOccupancy(val); ACK}), NULL},
     {'O', "<float>", "sets the occupied lower bound lumminance", floatArgCom([](float val){if(val < 0) ERR controller.setOccupiedReference(val); ACK}), NULL},
@@ -140,16 +158,11 @@ void setup() {
         comms.calibrateNetwork();
     }
 
-    /*if(myID == 0) {
-        consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
-                    gains1, exter1);
-    } else if(myID == 1) {
-        consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
-                    gains2, exter2);
-    } else if(myID == 2) {
-        consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
-                    gains3, exter3);
-    }*/
+    pico_unique_board_id_t uniqueId;
+    pico_get_unique_board_id(&uniqueId);
+
+    randomSeed(*(unsigned long *)(&(uniqueId.id)));
+
     consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
                 calibrator.getGains(), ambientIlluminance);
     controller.turnControllerOn();
