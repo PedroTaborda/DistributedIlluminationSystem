@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 #include <Wire.h>
-// #include <hardware/dma.h>
 #include <pico/stdlib.h>
 
 #include "calibration.hpp"
@@ -14,7 +13,6 @@
 #include "utilities.hpp"
 
 // Initialization of global variables
-
 float gammaFactor = 0.f;
 float gain = 0.f;
 float ambientIlluminance = 0.f;
@@ -120,7 +118,6 @@ void setup() {
     analogWriteFreq(PWM_FREQUENCY);
     analogWriteRange(DAC_RANGE);
     loadParamsStartup();
-    // Initialize Serial protocol
     Serial.begin(BAUD_RATE);
     #ifdef DEBUG
     while(!Serial);
@@ -140,16 +137,6 @@ void setup() {
         comms.calibrateNetwork();
     }
 
-    /*if(myID == 0) {
-        consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
-                    gains1, exter1);
-    } else if(myID == 1) {
-        consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
-                    gains2, exter2);
-    } else if(myID == 2) {
-        consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
-                    gains3, exter3);
-    }*/
     consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
                 calibrator.getGains(), ambientIlluminance);
     controller.turnControllerOn();
@@ -191,8 +178,6 @@ void loop() {
                 Wire.write((byte) consensus.iteration);
                 Wire.write((uint8_t*)sol, sizeof(double) * network.getNumberNodesNetwork());,
             ret)
-
-            //}
         }
         else if(consensus.state == CONSENSUS_STATE_WAITING_FOR_NEIGHBORS && millis() - consensus.beginWaitTime > RETRY_TIMEOUT_MS) {
             consensus.requestMissingD();

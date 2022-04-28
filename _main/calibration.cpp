@@ -441,8 +441,7 @@ void Calibrator::selfCalibrate(signed char selfId) {
     // some slight delays causing desynchronization.
     delay(SYNCRONIZATION_WAIT_MS);
 
-    // Turn the light off, as to not disturb the other calibrations
-    //controller.setDutyCycle(0.0f);
+    // Turn the light off, so as not to disturb the other calibrations
     set_u(0.0);
 }
 

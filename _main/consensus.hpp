@@ -16,13 +16,6 @@ unsigned long millis(){
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
-/*
-#define DEBUG_PRINT(...)     \
-    {                        \
-        printf("[DEBUG]");   \
-        printf(__VA_ARGS__); \
-    }
-*/
 #define DEBUG_PRINT(...) {}
 constexpr int MAX_DEVICES = 16;
 class NetworkDummy
@@ -122,7 +115,6 @@ public:
             {
                 di[iteration % HOLD_ITERATIONS][i] = sol[i];
             }
-            //printf("Best: g\n");
             setState(CONSENSUS_STATE_WAITING_FOR_NEIGHBORS);
             beginWaitTime = millis();
             return sol;
@@ -146,8 +138,6 @@ public:
         for (unsigned int i = 0; i < nNodes; i++) {
             di[iteration % HOLD_ITERATIONS][i] = S[best][i];
         }
-        //printf("Costs: %f, %f, %f, %f, %f\n", costs[0] > 100000 ? -1 : costs[0], costs[1] > 100000 ? -1 : costs[1], costs[2] > 100000 ? -1 : costs[2], costs[3] > 100000 ? -1 : costs[3], costs[4] > 100000 ? -1 : costs[4]);
-        //printf("Best: %d\n", best);
         setState(CONSENSUS_STATE_WAITING_FOR_NEIGHBORS);
         beginWaitTime = millis();
         return S[best];
@@ -250,7 +240,6 @@ public:
     }
     
     double *argming(){
-        // g(di) = 0.5 rho di'*di - di'*zi (quadratic cost)
         for (unsigned int i = 0; i < nNodes; i++) {
             diGlobalMin[i] = zi[i]/rho;
         }
@@ -302,14 +291,6 @@ public:
             } else {
                 alpha = ki[i] / (dot(nNodes, ki, ki) - ki[I] * ki[I]);
                 diS5[i] = zi[i] / rho - alpha * (oi - li + ki[I] + ( dot(nNodes, ki, zi) - ki[I] * zi[I]) / rho);
-                // printf("alpha: %f\n", alpha);
-                // printf("diS5[%d]: %f\n", i, diS5[i]);
-                // printf("zi/rho: %f\n", zi[i] / rho);
-                // printf("- dot(nNodes, ki, zi): %f\n", - dot(nNodes, ki, zi));
-                // printf("( - dot(nNodes, ki, zi) + ki[I] * zi[I]): %f\n", (-dot(nNodes, ki, zi) + ki[I] * zi[I]));
-                // printf("alpha * (oi - li + ki[I] + ( - dot(nNodes, ki, zi) + ki[I] * zi[I]) / rho): %f\n", alpha * (oi - li + ki[I] + (-dot(nNodes, ki, zi) + ki[I] * zi[I]) / rho));
-                // printf("oi-li: %f\n", oi - li);
-                // printf("ki[I]: %f\n", ki[I]);
             }
         }
         return diS5;
@@ -317,8 +298,6 @@ public:
     void computezi(){
         for (unsigned int i = 0; i < nNodes; i++) {
             zi[i] = rho * diMean[i] - lagrangeMultipliers[i] - (I == i ? localCost : 0.0);
-            printf("zi[%d]/rho: %.3ff; ", i, zi[i] / rho);
-            printf("zi[%d]: %.3f\n", i, zi[i]);
         }
     }
     void computeNextLagrangeMultipliers(){
@@ -370,12 +349,8 @@ public:
     {
         bool feasible = true;
         feasible = feasible && diCandidate[I] >= minDutyCycle - TOL;
-        // printf("isFeasible: %d; ", feasible);
         feasible = feasible && diCandidate[I] <= maxDutyCycle + TOL;
-        // printf("isFeasible: %d; ", feasible);
         feasible = feasible && dot(nNodes, ki, diCandidate) >= li - oi - TOL;
-        // printf("isFeasible: %d; ", feasible);
-        // printf("Di: %f %f\n" , diCandidate[0], diCandidate[1]);
         return feasible;
     }
 };

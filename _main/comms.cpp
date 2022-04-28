@@ -166,7 +166,6 @@ ProcessingResult Comms::processCommand(const char *command) volatile
     int ret = 0;
     char *commandRet = NULL;
 
-    //Serial.printf("My id: %d, luminaire id: %d\n", my_id, luminaireID);
     if (luminaireID == myID)
     {
         commandRet = parser.executeCommand(command, myID);
@@ -174,8 +173,7 @@ ProcessingResult Comms::processCommand(const char *command) volatile
         return commandRet == NULL ? PROCESSING_LOCAL_EXECUTION_FAILURE : PROCESSING_OK;
     }
 
-    const char *strippedCommand = command;//= parser.strip(command);
-    // Serial.printf("Sending command: '%s'\n", strippedCommand);
+    const char *strippedCommand = command;
     Wire.beginTransmission(luminaireID + addr_offset);
     DEBUG_PRINT("Sending MSG_TYPE_COMMAND")
     Wire.write(myID);
@@ -203,10 +201,6 @@ void Comms::onReceive(int signed bytesReceived) volatile
     signed char id = (MSG_TYPE) Wire1.read();
     MSG_TYPE msgType = (MSG_TYPE) Wire1.read();
     messageCounter += 1;
-    //error = true;
-    //sprintf(errorMsg, "Received %d bytes. Message type: %d\n", bytesReceived, msgType);
-
-    //DEBUG_PRINT("Received message %hhu with %d bytes", msgType, bytesReceived)
 
     if (bytesReceived + 1 > receivedDataBufferSize)
     {
@@ -531,5 +525,4 @@ void parseSerial(volatile Comms &comms) {
     DEBUG_PRINT("Received: '%s'\n", string)
     int ret = comms.processCommand(string);
     (void)ret;
-    //DEBUG_PRINT("Process command returned %d\n", ret)
 }

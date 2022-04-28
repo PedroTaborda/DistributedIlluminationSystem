@@ -47,25 +47,6 @@ const int SCL_SLAVE_PIN = 15;
 #endif
 
 
-
-/* This file contains the specification for communication between the
- * luminaires.
- * There are four main conversation types:
- * 1. Wake up. All luminaires are identified and addresses are assigned.
- * 2. Callibration. Cross gain computation is performed.
- * 3. Control. The information related to the consensus algorithm is sent.
- * 4. Commands. The messages exchanged come from a Serial interface (if present)
- *   and are parsed and executed.
- *      If the target luminaire is the current luminaire, there is no I2C involved.
- *      If the target luminaire is not the current luminaire, the message is
- *   stripped of unnecessary spaces and sent through I2C to the address
- *   <id> + offset (8 by default). The response is relayed back to the Serial
- *   interface.
- *      Some commands start a stream of data. This data is broadcasted to all
- *   luminaires, and the response is relayed back to the Serial interface, if
- *   present.
- */
-
 enum MSG_TYPE : unsigned char {
     MSG_TYPE_ERROR = 0,
     MSG_TYPE_NONE,

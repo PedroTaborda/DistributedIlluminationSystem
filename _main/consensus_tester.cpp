@@ -21,8 +21,6 @@ void consensusSolverEx2()
     int nNodes = 2;
     double localCost1 = 100.0;
     double localCost2 = 1.0;
-    //    double gainsOthersToMe1[2] = {40.0, 8.0};
-    //    double gainsOthersToMe2[2] = {6.0, 37.0};
     double gainsOthersToMe1[2] = {86.05, 51.32};
     double gainsOthersToMe2[2] = {17.12, 71.53};
 
