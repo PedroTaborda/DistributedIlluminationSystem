@@ -415,12 +415,13 @@ void Comms::processReceivedData() volatile
         DEBUG_PRINT("test")
         DEBUG_PRINT("My random being received is: %#04x %#04x %#04x %#04x\n", receivedDataBuffer[1], receivedDataBuffer[2], receivedDataBuffer[3], receivedDataBuffer[4])
         {
-        int receivedRandom = *((int *)(receivedDataBuffer + 1));
+        int receivedRandom;
+        memcpy(&receivedRandom, (const void *)(receivedDataBuffer + 1), sizeof(int));
         DEBUG_PRINT("Received random in int as %d\n", receivedRandom);
         if(receivedDataBuffer[0] == myID && receivedRandom != myRandom) {
             DEBUG_PRINT("Cast was successful, random's were not the same.\n")
             Wire1.end();
-            delay(abs(random() % 100));
+            delay(20);
             joinNetwork();
             DEBUG_PRINT("Received MSG_TYPE_ANNOUNCE_ID with same ID. Rejoined\n")
         }

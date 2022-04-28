@@ -145,9 +145,6 @@ void setup() {
     loadParamsStartup();
     // Initialize Serial protocol
     Serial.begin(BAUD_RATE);
-    #ifdef DEBUG
-    while(!Serial);
-    #endif
     alarm_pool_init_default();
     DEBUG_PRINT("Gain: %f\n", gain);
     comms.init();
