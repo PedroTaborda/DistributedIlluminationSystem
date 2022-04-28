@@ -28,6 +28,7 @@ float outBuffer[outBufferSize];
 int outBuffer_i = outBufferSize;  // >= outBufferSize means no transfer to be done
 
 alarm_pool_t* core1AlarmPool;
+repeating_timer networkTimer;
 
 int myID = 0;
 extern volatile Comms comms;
@@ -144,6 +145,9 @@ void setup() {
     analogWriteRange(DAC_RANGE);
     loadParamsStartup();
     // Initialize Serial protocol
+    #ifdef DEBUG
+    while(!Serial) ;
+    #endif
     Serial.begin(BAUD_RATE);
     alarm_pool_init_default();
     DEBUG_PRINT("Gain: %f\n", gain);
@@ -163,6 +167,7 @@ void setup() {
     consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
                 calibrator.getGains(), ambientIlluminance);
     controller.turnControllerOn();
+    network.beginAliveCheck(&networkTimer);
 }
 
 void loop() {
@@ -211,6 +216,9 @@ void loop() {
             consensus.finishIter();
         }
     }
+
+    if(network.shouldEmmitAlive())
+        network.emmitAliveMessage();
 }
 
 void setup1() {

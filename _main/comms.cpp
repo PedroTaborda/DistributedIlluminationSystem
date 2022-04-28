@@ -61,6 +61,7 @@ void Comms::init() volatile
 bool Comms::joinNetwork() volatile
 {
     int ret;
+    my_id = 0;
     for (int my_potential_addr = my_id + addr_offset; my_potential_addr < 128; my_potential_addr++)
     {
         SEND_MSG_HOLD(my_potential_addr, RETRY_TIMEOUT_MS, ,ret)
@@ -412,7 +413,7 @@ void Comms::processReceivedData() volatile
     // In case someone has just woken up and I'm id=0, I'll see if we're waiting
     // to start calibration. If yes, reset the counter back to the start.
     case MSG_TYPE_ANNOUNCE_ID:
-        DEBUG_PRINT("test")
+        /*DEBUG_PRINT("test")
         DEBUG_PRINT("My random being received is: %#04x %#04x %#04x %#04x\n", receivedDataBuffer[1], receivedDataBuffer[2], receivedDataBuffer[3], receivedDataBuffer[4])
         {
         int receivedRandom;
@@ -425,14 +426,14 @@ void Comms::processReceivedData() volatile
             joinNetwork();
             DEBUG_PRINT("Received MSG_TYPE_ANNOUNCE_ID with same ID. Rejoined\n")
         }
-        else {
-            network.addNodeToNetwork(receivedDataBuffer[0]);
-            if(my_id == 0 && calibrator.waiting()) {
-                calibrator.resetWait();
-            }
-            DEBUG_PRINT("Received MSG_TYPE_ANNOUNCE_ID\n")
+        else {*/
+        network.addNodeToNetwork(receivedDataBuffer[0]);
+        if(my_id == 0 && calibrator.waiting()) {
+            calibrator.resetWait();
         }
-        }
+        DEBUG_PRINT("Received MSG_TYPE_ANNOUNCE_ID\n")
+        /*}
+        }*/
         break;
     case MSG_TYPE_ROLL_CALL:
         network.resetNetwork();
@@ -519,6 +520,10 @@ void Comms::processReceivedData() volatile
         }
         else
             DEBUG_PRINT("Not running consensus\n")
+        break;
+    case MSG_TYPE_ALIVE:
+        DEBUG_PRINT("Received MSG_TYPE_ALIVE")
+        network.stayAlive(receivedDataBuffer[0]);
         break;
     default:
         DEBUG_PRINT("===========Message wasn't well read. Code %d===========\n", receivedMsg)

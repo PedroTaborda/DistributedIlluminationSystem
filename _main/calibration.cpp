@@ -380,6 +380,10 @@ float Calibrator::getExternalLuminance() {
     return externalLuminance;
 }
 
+void Calibrator::removeNode(signed char index) {
+    memcpy(staticGains + index, staticGains + index + 1, sizeof(double) * (MAX_DEVICES - index - 1));
+}
+
 void Calibrator::calibrateGainId(signed char id) {
     // Wait for first measurement steady-state
     delay(STEADY_STATE_WAIT_MS);

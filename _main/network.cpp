@@ -1,3 +1,5 @@
+#include "calibration.hpp"
+#include "consensus.hpp"
 #include "network.hpp"
 
 #include <algorithm>
@@ -50,6 +52,52 @@ uint8_t Network::getIndexId(signed char id) {
         if(deviceList[i] == (uint8_t)id) return i;
 
     return MAX_DEVICES;
+}
+
+void Network::beginAliveCheck(repeating_timer* timerStruct) {
+    add_repeating_timer_ms(-ALIVE_CHECK_TIME_MS, Network::checkAlive, (void *)this, timerStruct);
+}
+
+void Network::stayAlive(signed char id) {
+    alive[getIndexId(id)] = true;
+}
+
+bool Network::shouldEmmitAlive() {
+    return emmitAlive;
+}
+
+void Network::emmitAliveMessage() {
+    int ret;
+    SEND_MSG(0, RETRY_TIMEOUT_MS,
+        Wire.write(MSG_TYPE_ALIVE);,
+    ret)
+    emmitAlive = false;
+}
+
+bool Network::checkAlive(repeating_timer* timerStruct) {
+    Network *instance = (Network *)timerStruct->user_data;
+
+    for(uint8_t i = 0; i < instance->numberDevices; i++) {
+        if(myID == instance->deviceList[i]) continue;
+        if(instance->alive[i]) {
+            instance->timeSinceAlive[i] = 0;
+            instance->alive[i] = false;
+        }
+        else
+            instance->timeSinceAlive[i] += 1;
+
+        if(instance->timeSinceAlive[i] >= MAX_TIME_SINCE_ALIVE) {
+            memcpy(instance->deviceList + i, instance->deviceList + i + 1, instance->numberDevices - i - 1);
+            instance->numberDevices -= 1;
+            i -= 1;
+            calibrator.removeNode(i);
+            consensus.nNodes -= 1;
+        }
+    }
+
+    instance->emmitAlive = true;
+
+    return true;
 }
 
 Network network;

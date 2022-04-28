@@ -38,6 +38,8 @@ public:
     double *getGains();
     float getExternalLuminance();
 
+    void removeNode(signed char index);
+
     void calibrateGainId(signed char id);
     void selfCalibrate(signed char selfId);
     void endCalibration();

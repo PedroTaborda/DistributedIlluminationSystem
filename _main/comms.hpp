@@ -86,6 +86,7 @@ enum MSG_TYPE : unsigned char {
     MSG_TYPE_CONSENSUS_D,
     MSG_TYPE_CONSENSUS_ASK_D,
     MSG_TYPE_CONSENSUS_CONVERGENCE,
+    MSG_TYPE_ALIVE
 };
 
 enum ProcessingResult
