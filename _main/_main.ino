@@ -134,6 +134,11 @@ double exter2 = 30;
 double exter3 = 40;
 
 void setup() {
+    pico_unique_board_id_t uniqueId;
+    pico_get_unique_board_id(&uniqueId);
+
+    // Have to use the lower 32 bits. The higher ones lead to the same seed for some reason.
+    randomSeed(*(unsigned long *)(&(uniqueId.id[4])));
     analogReadResolution(12);
     analogWriteFreq(PWM_FREQUENCY);
     analogWriteRange(DAC_RANGE);
@@ -157,11 +162,6 @@ void setup() {
         DEBUG_PRINT("Done waiting. Calibration starting...\n")
         comms.calibrateNetwork();
     }
-
-    pico_unique_board_id_t uniqueId;
-    pico_get_unique_board_id(&uniqueId);
-
-    randomSeed(*(unsigned long *)(&(uniqueId.id)));
 
     consensus.start(network.getNumberNodesNetwork(), network.getIndexId(myID), 1.0f,
                 calibrator.getGains(), ambientIlluminance);
