@@ -1,1 +1,7 @@
-# SCDTR
+# Distributed Illumination System
+
+Built for the [SCDTR](https://fenix.tecnico.ulisboa.pt/disciplinas/SCDTR/2021-2022/2-semestre) course at Instituto Superior Técnico, this repository contains the code for a distributed illumination system. The system is composed of a set of nodes, each representing some physical space needing illumination, with a light sensor, a light source and the ability to communicate with other nodes. For a set illumination level, the nodes will cooperate to achieve it using a consensus algorithm. The nodes are based on the Raspberry Pi Pico and communicate using I2C.
+
+All nodes are running the same code presented in the `_main` directory, responsible for structuring the network in a meaningful and efficient way: the first node connected becomes the root of the network, assigning a unique address to each subsequent node and becoming the orchestrator of the calibration process and consensus algorithm. 
+
+Each node exposes a Serial interface to communicate with a computer - this interface may be used to configure or read data from any node. Built on top of this interface, the `serial_com_async.py` Python script, using [`matplotlib`](https://matplotlib.org/) and [`pysimplegui`](https://docs.pysimplegui.com/en/latest/) for the GUI, allows for the visualization of data within all nodes in real time, leveraging the network's capability to relay requests and responses between nodes. 
